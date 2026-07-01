@@ -12,31 +12,9 @@ DEBIAN_REQ_VERSION_CODENAME="TRIXIE"
 ID="undefined"
 VERSION_ID="undefined"
 
-
-# ==========================================
-# LOGO
-# ==========================================
-cat << "EOF"
-
-           il*%%%%*             i%%%%%%%           
-          iiiI*%%%%%           iii*%%%%*%          
-         iiiiii%%%%%%         iiiii%*%%%*%         
-        iiiiiii %%%%%%       iiiiii %*%%%%%        
-       iiiiiii   *%%%%%%   iiiiiii   **%%%%*       
-      iiiiiii     *%%%%%% iiiiiii     %*%%%%*      
-     iiiiiii       **%%%**iiiiii       *%%%%*%     
-    iiiiiii         *%%%%*<iiii         **%%%**    
-   iiiiiii           %*%%%**ii           *%%%%*%   
-  iiiiiiiiiiiiiiiiiiii%%%%%%*%%%%%%%%%%%%%%%%%%%*  
- iiiiiiiiiiiiiiiiiiiiii%*%%%%%%%%%%%%%%%%%%%%%%%%* 
-iiiiiiiiiiiiiiiiiiiiiiii**%%%%%%%%%%%%%%%%%%%%%%%%%
-                                                   
-iiiii  iiiiii iiiiii  iiiii  iiiiii iiiiii  iii  iiiiii
-ii  ii ii  ii ii  ii  ii  ii  ii     ii    ii ii   ii  
-iiiii  iiiiii ii  ii  iiiii     ii   ii   iiiiiii  ii  
-ii     ii  ii iiiiii  ii     iiiiii  ii   ii   ii  ii  
-
-EOF
+# To Do
+# config: 
+# touch ssldeploy.db
 
 # ==========================================
 # Copyright & License Warning
@@ -288,3 +266,19 @@ confirm_continue() {
         esac
     done
 }
+
+# ==========================================
+# Prepare DB
+# If SSL Deploy is installed for the first time, create the DB, otherwise make a backup before migration. 
+# ==========================================
+
+if [ ! -f ssldeploy.db ]; then
+    echo "Creating database..."
+    touch ssldeploy.db
+    echo "Database created."
+else
+    echo "Database already exists. Making Backup before migration."
+    mkdir -p backup
+    cp ../ssldeploy.db "../backup/ssldeploy_$(date +%Y%m%d_%H%M%S).db"
+fi
+
