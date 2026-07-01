@@ -64,6 +64,8 @@ DNS authentication credentials, target system credentials and certificates are n
 
 ## Supported DNS creation
 
+# Privacy
+You can find the fully privacy agreement on https://propstat.org/privacy.
 
 # License 
 

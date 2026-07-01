@@ -1,3 +1,7 @@
+# ssldeploy files
+*.db
+.license 
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
@@ -5,9 +9,6 @@ __pycache__/
 
 # C extensions
 *.so
-
-# SQLite database
-*.db
 
 # Distribution / packaging
 .Python
