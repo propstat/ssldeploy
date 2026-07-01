@@ -62,6 +62,7 @@ Currently following DNS providers are supported:
 If you want to introduce support for an additional provider visit our repository at
 https://github.com/propstat/ssldeploy
 EOF
+
 cat << EOF
 
 ${RED}==========================================${NC}

@@ -10,6 +10,7 @@ SERVICE_NAME="ssldeploy"
 # LOGO
 # ==========================================
 cat << "EOF"
+========================================================
 
            il*%%%%*             i%%%%%%%           
           iiiI*%%%%%           iii*%%%%*%          
@@ -29,9 +30,13 @@ ii  ii ii  ii ii  ii  ii  ii  ii     ii    ii ii   ii
 iiiii  iiiiii ii  ii  iiiii     ii   ii   iiiiiii  ii  
 ii     ii  ii iiiiii  ii     iiiiii  ii   ii   ii  ii  
 
+========================================================
+SSL Deploy Setup Wizard
+========================================================
+
+© 2026 by Propstat
 EOF
 
-echo "=== SSLEDeploy Manager ==="
 
 # Detect existing install
 if [ -d "$TARGET_DIR" ]; then
