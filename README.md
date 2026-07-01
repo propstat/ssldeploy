@@ -29,9 +29,7 @@ To request an increase of rate limits [visit this link](https://isrg.formstack.c
 Run following command to start the installation wizard (requires internet connection).
 
 ```bash
-
 sh -c 'tmp=$(mktemp) || exit 1; url="https://raw.githubusercontent.com/propstat/ssldeploy/main/install/ssldeploy-setup-wizard.sh"; url="$url?nocache=$(date +%s)"; if command -v curl >/dev/null 2>&1; then curl -fsSL "$url" -o "$tmp"; elif command -v wget >/dev/null 2>&1; then wget -qO "$tmp" "$url"; else echo "Error: need curl or wget" >&2; exit 1; fi; chmod +x "$tmp"; sh "$tmp"'
-
 ```
 
 ### Development & Debug Mode
