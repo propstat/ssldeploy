@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-
 set -euo pipefail
 
 REPO_URL="https://github.com/propstat/ssldeploy"
@@ -34,11 +33,11 @@ EOF
 
 echo "=== SSLEDeploy Manager ==="
 
-# Check if folder exists
+# Detect existing install
 if [ -d "$TARGET_DIR" ]; then
-    echo "Directory $TARGET_DIR already exists."
+    echo "Directory already exists: $TARGET_DIR"
     echo "What do you want to do?"
-    echo "1) Update / Re-install (not implemented yet)"
+    echo "1) Update / Re-install"
     echo "2) Remove"
     echo "3) Exit"
     read -rp "Choose [1-3]: " choice
@@ -48,42 +47,47 @@ else
 fi
 
 install() {
-    # ==========================================
-    # Copyright & License Warning
-    # ==========================================
-
-    date +"Copyright 2026 - YYYY by Propstat"
+    date +"Copyright %Y by Propstat"
     echo "Non commercial use is free of charge, please consult our license for commercial use."
-    echo "The license is available at https://github.com/propstat/ssldeploy"
-
-    # ==========================================
-    # Accept License
-    # ==========================================
+    echo "License: https://github.com/propstat/ssldeploy"
+    echo ""
 
     while true; do
-        echo "Do you accept the license?"
-        echo "Type Y(es) to continue or N(o) to abort."
-        read -p "#? " reply
+        printf "Do you accept the license? (y/n): "
+        read -r reply
 
-        case $reply in
-            1 | Yes | yes | y | Y ) 
-                make install
+        case "$reply" in
+            y|Y|yes|YES|Yes)
                 break
                 ;;
-            2 | No | no | n | N ) 
+            n|N|no|NO|No)
                 echo "Installation aborted."
                 exit 0
                 ;;
-            * ) 
+            *)
                 echo "Invalid option. Please try again."
-                echo ""
                 ;;
         esac
     done
-    echo "Cloning repository..."
-    git clone "$REPO_URL" "$TARGET_DIR"
 
-    echo "Making install script executable..."
+    echo "Installing / Updating..."
+
+    # Safe clone or update
+    if [ -d "$TARGET_DIR/.git" ]; then
+        echo "Existing git repo detected → updating..."
+        git -C "$TARGET_DIR" pull
+    else
+        echo "Cloning repository..."
+        rm -rf "$TARGET_DIR"
+        git clone "$REPO_URL" "$TARGET_DIR"
+    fi
+
+    # Validate install script exists
+    if [ ! -f "$INSTALL_SCRIPT" ]; then
+        echo "ERROR: install script not found: $INSTALL_SCRIPT"
+        exit 1
+    fi
+
     chmod +x "$INSTALL_SCRIPT"
 
     echo "Running install script..."
@@ -94,10 +98,10 @@ remove() {
     echo "Stopping and removing service (if exists)..."
 
     if command -v systemctl >/dev/null 2>&1; then
-        if systemctl list-units --type=service | grep -q "${SERVICE_NAME}"; then
-            sudo systemctl stop "${SERVICE_NAME}" || true
-            sudo systemctl disable "${SERVICE_NAME}" || true
-            sudo systemctl daemon-reload || true
+        if systemctl list-unit-files | grep -q "^${SERVICE_NAME}.service"; then
+            systemctl stop "${SERVICE_NAME}" 2>/dev/null || true
+            systemctl disable "${SERVICE_NAME}" 2>/dev/null || true
+            systemctl daemon-reload || true
             echo "Service removed."
         else
             echo "Service not found."
@@ -117,7 +121,7 @@ case "$choice" in
         install
         ;;
     1)
-        echo "Update / Re-install selected (not implemented yet)."
+        install
         ;;
     2)
         remove
