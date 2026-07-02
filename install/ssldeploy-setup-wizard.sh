@@ -95,10 +95,6 @@ install() {
         
         # Change into the directory to work locally
         cd "$TARGET_DIR"
-        
-        # Create an empty .licensekey tracking file in the root repo directory
-        # which acts as "../.licensekey" once install.sh is running.
-        touch ".licensekey"
     fi
 
     # Validate install script exists
