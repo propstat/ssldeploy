@@ -15,6 +15,9 @@ RANDOM_6_DIGIT=$(awk 'BEGIN{srand();print int(rand()*900000)+100000}')
 # ==========================================
 
 license_request() {
+
+    echo "Generating license request..."
+    
     # Check if the license file already exists in app root folder
     if [ -f "$LICENSE_FILE" ]; then
         echo "License file already exists at $LICENSE_FILE. Skipping license request."
@@ -51,5 +54,6 @@ license_request() {
     fi
 
     echo "License has been successfully generated and stored in $LICENSE_FILE."
+    unset SYSTEM_UUID TIMESTAMP RANDOM_6_DIGIT RAW_STRING GENERATED_KEY TMP_RESPONSE_FILE HTTP_STATUS PARSED_KEY PARSED_PIN PARSED_TIMESTAMP
 
 }

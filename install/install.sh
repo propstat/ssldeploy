@@ -11,7 +11,7 @@
 # Helper Scripts
 # ==========================================
 . ./helpers/confirm_continue.sh
-. ./helpers/install_requirements.sh
+. ./helpers/install_linux_dependencies.sh
 . ./helpers/license_request.sh
 . ./helpers/mode_dev.sh
 . ./helpers/mode_prod.sh
@@ -96,12 +96,17 @@ confirm_continue -n \
     on_no="echo 'You have not accepted the privacy agreement, the installation is cancelled.'; exit 1"
 
 # ==========================================
-# License File Generation
+# Run Sub-Scripts
 # ==========================================
 
-echo "Generating license request..."
-
 license_request
+install_linux_dependencies
+
+# ==========================================
+# Linux Dependencies
+# ==========================================
+
+
 
 cat << EOF
 
