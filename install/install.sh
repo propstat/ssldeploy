@@ -102,7 +102,8 @@ done
 # ==========================================
 # Variables
 # ==========================================
-RED=$'\e[0;31m'
+RED=$'\e[0;31m' # Warning Color
+NC=$'\e[0m' # No Color
 RHEL_REQ_VERSION_ID="10"
 RHEL_REQ_VERSION_CODENAME="Coughlan"
 UBUNTU_REQ_VERSION_ID="26.04"
