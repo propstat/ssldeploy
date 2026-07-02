@@ -6,7 +6,29 @@
 # the SSL Deploy App and the SSL Deploy Service
 # on your system. It will also request a license key
 # and support pin from Propstat.
-#!/usr/bin/env bash
+
+# ==========================================
+# Helper Scripts
+# ==========================================
+. ./helpers/confirm_continue.sh
+. ./helpers/install_requirements.sh
+. ./helpers/license_request.sh
+. ./helpers/mode_dev.sh
+. ./helpers/mode_prod.sh
+
+# ==========================================
+# Variables
+# ==========================================
+RHEL_REQ_VERSION_ID="10"
+RHEL_REQ_VERSION_CODENAME="Coughlan"
+UBUNTU_REQ_VERSION_ID="26.04"
+UBUNTU__REQ_VERSION_CODENAME="Resolute Raccoon"
+DEBIAN_REQ_VERSION_ID="13"
+DEBIAN_REQ_VERSION_CODENAME="TRIXIE"
+ID="undefined"
+VERSION_ID="undefined"
+RED=$(printf '\033[0;31m')
+NC=$(printf '\033[0m')
 
 # ==========================================
 # Copyright & License Acceptance
@@ -40,23 +62,10 @@ else
 EOF
 fi
 
-while true; do
-    printf "Do you accept the license? (y/n): "
-    read -r reply
-
-    case "$reply" in
-        y|Y|yes|YES|Yes)
-            break
-            ;;
-        n|N|no|NO|No)
-            echo "Installation aborted."
-            exit 0
-            ;;
-        *)
-            echo "Invalid option. Please try again."
-            ;;
-    esac
-done
+confirm_continue -n \
+    -startmsg="Do you accept the License Agreement?" \
+    -endmsg="You have accepted the license agreement." \
+    on_no="echo 'You have not accepted the license agreement, the installation is cancelled.'; exit 1"
 
 cat << "EOF"
 
@@ -81,59 +90,18 @@ https://propstat.org/privacy
 
 EOF
 
-while true; do
-    printf "Do you accept the privacy agreement? (y/n): "
-    read -r reply
-
-    case "$reply" in
-        y|Y|yes|YES|Yes)
-            break
-            ;;
-        n|N|no|NO|No)
-            echo "Installation aborted."
-            exit 0
-            ;;
-        *)
-            echo "Invalid option. Please try again."
-            ;;
-    esac
-done
+confirm_continue -n \
+    -startmsg="Do you accept the Privacy Agreement?" \
+    -endmsg="You have accepted the privacy agreement." \
+    on_no="echo 'You have not accepted the privacy agreement, the installation is cancelled.'; exit 1"
 
 # ==========================================
-# Variables
+# License File Generation
 # ==========================================
-RHEL_REQ_VERSION_ID="10"
-RHEL_REQ_VERSION_CODENAME="Coughlan"
-UBUNTU_REQ_VERSION_ID="26.04"
-UBUNTU__REQ_VERSION_CODENAME="Resolute Raccoon"
-DEBIAN_REQ_VERSION_ID="13"
-DEBIAN_REQ_VERSION_CODENAME="TRIXIE"
-ID="undefined"
-VERSION_ID="undefined"
-RED=$(printf '\033[0;31m')
-NC=$(printf '\033[0m')
 
-# ==========================================
-# Helper Scripts
-# ==========================================
-. ./helpers/confirm_continue.sh
-. ./helpers/install_requirements.sh
-. ./helpers/license_request.sh
-. ./helpers/mode_dev.sh
-. ./helpers/mode_prod.sh
+echo "Generating license request..."
 
-# ==========================================
-# Introduction and Warning
-# ==========================================
-cat << "EOF"
-This tool allows you to request and deploy Let’s Encrypt™ Certificates among your services.
-
-Currently following DNS providers are supported:
-- Cloudflare
-
-If you want to introduce support for an additional provider visit our repository at
-https://github.com/propstat/ssldeploy
-EOF
+license_request
 
 cat << EOF
 
@@ -230,114 +198,6 @@ if ! ver_ge "$distro_version" "$req"; then
 fi
 
 echo "Version requirement satisfied"
-
-# ==========================================
-# Boolean Continue Script
-# ==========================================
-confirm_continue() {
-    default="y"
-    quiet=0
-    timeout=""
-
-    msg_yes="Continuing..."
-    msg_no="Aborted."
-    msg_timeout="Timeout reached. Aborting."
-    msg_invalid="Invalid option. Please try again."
-
-    # parse args (POSIX-safe)
-    while [ $# -gt 0 ]; do
-        case "$1" in
-            -q|--quiet)
-                quiet=1
-                ;;
-            -y|--yes)
-                default="y"
-                ;;
-            -n|--no)
-                default="n"
-                ;;
-            -t|--timeout)
-                shift
-                timeout="$1"
-                ;;
-            msg_yes=*) msg_yes=${1#msg_yes=} ;;
-            msg_no=*) msg_no=${1#msg_no=} ;;
-            msg_timeout=*) msg_timeout=${1#msg_timeout=} ;;
-            msg_invalid=*) msg_invalid=${1#msg_invalid=} ;;
-            *)
-                ;;
-        esac
-        shift
-    done
-
-    # quiet mode
-    if [ "$quiet" -eq 1 ]; then
-        printf "%s\n" "$msg_yes" >&2
-        return 0
-    fi
-
-    # apt/dnf-style prompt
-    if [ "$default" = "y" ]; then
-        prompt="Proceed? [Y/n]: "
-    else
-        prompt="Proceed? [y/N]: "
-    fi
-
-    while :; do
-        printf "%s" "$prompt" >&2
-        ans=""
-
-        # timeout version
-        if [ -n "$timeout" ]; then
-            tmp="/tmp/.confirm_ans_$$"
-
-            (
-                IFS= read -r ans < /dev/tty
-                printf "%s" "$ans" > "$tmp"
-            ) &
-            pid=$!
-
-            i=0
-            while [ "$i" -lt "$timeout" ]; do
-                [ -f "$tmp" ] && break
-                sleep 1
-                i=$((i + 1))
-            done
-
-            if [ ! -f "$tmp" ]; then
-                kill "$pid" 2>/dev/null
-                rm -f "$tmp"
-                printf "\n%s\n" "$msg_timeout" >&2
-                return 1
-            fi
-
-            wait "$pid" 2>/dev/null
-            ans=$(cat "$tmp")
-            rm -f "$tmp"
-        else
-            IFS= read -r ans < /dev/tty
-        fi
-
-        # default handling
-        if [ -z "$ans" ]; then
-            ans="$default"
-        fi
-
-        case "$ans" in
-            y|Y|yes|YES|Yes)
-                printf "%s\n" "$msg_yes" >&2
-                return 0
-                ;;
-            n|N|no|NO|No)
-                printf "%s\n" "$msg_no" >&2
-                return 1
-                ;;
-            *)
-                printf "%s\n" "$msg_invalid" >&2
-                ;;
-        esac
-    done
-}
 
 # ==========================================
 # Prepare DB

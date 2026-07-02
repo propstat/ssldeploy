@@ -1,6 +1,19 @@
 #!/bin/sh
 # Source this file: . ./license_request.sh
 
+# ==========================================
+# Script Variables
+# ==========================================
+LICENSE_FILE="../.licensekey"
+SERVICE_NAME="ssldeploy"
+SYSTEM_UUID=$(cat /proc/sys/kernel/random/uuid 2>/dev/null || uuidgen 2>/dev/null || echo "default-uuid")
+TIMESTAMP=$(date +%s)
+RANDOM_6_DIGIT=$(awk 'BEGIN{srand();print int(rand()*900000)+100000}')
+
+# ==========================================
+# License Key Generation and Support Pin Request
+# ==========================================
+
 license_request() {
     # Check if the license file already exists in app root folder
     if [ -f "$LICENSE_FILE" ]; then
@@ -25,7 +38,7 @@ license_request() {
                 echo "key = ${PARSED_KEY}"
                 echo "pin = ${PARSED_PIN}"
                 echo "timestamp = ${PARSED_TIMESTAMP}"
-            } >> ".license"
+            } >> "$LICENSE_FILE"
 
             echo "License retrieved and bound successfully."
         else
@@ -37,14 +50,6 @@ license_request() {
         rm -f "$TMP_RESPONSE_FILE"
     fi
 
-    # Validate install script exists
-    if [ ! -f "$INSTALL_SCRIPT" ]; then
-        echo "ERROR: install script not found: $INSTALL_SCRIPT"
-        exit 1
-    fi
-
-    chmod +x "$INSTALL_SCRIPT"
-
-    echo "Running install script..."
+    echo "License has been successfully generated and stored in $LICENSE_FILE."
 
 }

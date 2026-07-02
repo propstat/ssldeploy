@@ -73,7 +73,7 @@ if [ -d "$TARGET_DIR" ]; then
     echo "3) Exit"
     read -rp "Choose [1-3]: " choice
 else
-    echo "SSLEDeploy not found. The installation process will begin."
+    echo "SSLDeploy not found. The installation process will begin."
 fi
 
 install() {
@@ -96,64 +96,9 @@ install() {
         # Change into the directory to work locally
         cd "$TARGET_DIR"
         
-        # Create License File and Log Acceptance (to avoid duplicate request by install.sh)
-        touch ".license"
-        echo "License file created."
-        echo "licenseAccepted=true" > ".license"
-        echo "License Acceptance Logged."
-        echo "Requesting License Key and Support Pin from Propstat."
-
-        # Generate Unique SHA256 License Key and Request Support Pin
-        echo "Detecting System Hardware UUID for License Key Generation."
-        
-        case "${OSTYPE:-}" in
-            darwin*)
-                MACHINE_ID=$(ioreg -d2 -c IOPlatformExpertDevice | awk -F\" '/IOPlatformUUID/ {print $4}')
-                ;;
-            *)
-                if [ -f /etc/machine-id ]; then
-                    MACHINE_ID=$(cat /etc/machine-id)
-                elif [ -f /var/lib/dbus/machine-id ]; then
-                    MACHINE_ID=$(cat /var/lib/dbus/machine-id)
-                else
-                    MACHINE_ID="unknown-fallback-id"
-                fi
-                ;;
-        esac
-
-        echo "Generating Additional Randomized License Key Components."
-        TIMESTAMP=$(date +%s)
-        RANDOM_6_DIGIT=$(head -c 512 /dev/urandom | tr -dc '0-9' | head -c 6)
-
-        RAW_STRING="${MACHINE_ID}${TIMESTAMP}${RANDOM_6_DIGIT}"
-        GENERATED_KEY=$(echo -n "$RAW_STRING" | shasum -a 256 | awk '{print $1}')
-
-        TMP_RESPONSE_FILE=$(mktemp)
-        echo "Requesting License Key from Propstat and Support Pin."
-        HTTP_STATUS=$(curl -s -o "$TMP_RESPONSE_FILE" -w "%{http_code}" -X POST https://license.propstat.org/license/getlicense \
-            -d "key=${GENERATED_KEY}" \
-            -d "productSKU=${SERVICE_NAME}")
-
-        if [ "$HTTP_STATUS" -eq 200 ] || [ "$HTTP_STATUS" -eq 201 ]; then
-            # 5. Parse key, pin, and timestamp from the server's payload
-            PARSED_KEY=$(awk -F ' *= *' '$1=="key"{print $2}' "$TMP_RESPONSE_FILE")
-            PARSED_PIN=$(awk -F ' *= *' '$1=="pin"{print $2}' "$TMP_RESPONSE_FILE")
-            PARSED_TIMESTAMP=$(awk -F ' *= *' '$1=="timestamp"{print $2}' "$TMP_RESPONSE_FILE")
-
-            {
-                echo "key = ${PARSED_KEY}"
-                echo "pin = ${PARSED_PIN}"
-                echo "timestamp = ${PARSED_TIMESTAMP}"
-            } >> ".license"
-
-            echo "License retrieved and bound successfully."
-        else
-            echo "Error: Server responded with status ${HTTP_STATUS}"
-            cat "$TMP_RESPONSE_FILE"
-        fi
-
-        # Clean up temporary file
-        rm -f "$TMP_RESPONSE_FILE"
+        # Create an empty .licensekey tracking file in the root repo directory
+        # which acts as "../.licensekey" once install.sh is running.
+        touch ".licensekey"
     fi
 
     # Validate install script exists
