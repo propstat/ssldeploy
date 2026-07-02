@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 set -euo pipefail
 REPO_URL="https://github.com/propstat/ssldeploy"
 TARGET_DIR="$HOME/ssldeploy"
