@@ -4,8 +4,8 @@ REPO_URL="https://github.com/propstat/ssldeploy"
 TARGET_DIR="$HOME/ssldeploy"
 INSTALL_SCRIPT="$TARGET_DIR/install/install.sh"
 SERVICE_NAME="ssldeploy"
-RED=$'\e[0;31m' # Warning Color
-NC=$'\e[0m' # No Color
+RED=$(printf '\033[0;31m')
+NC=$(printf '\033[0m')
 
 # ==========================================
 # LOGO

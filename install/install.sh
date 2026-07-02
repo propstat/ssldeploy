@@ -102,8 +102,6 @@ done
 # ==========================================
 # Variables
 # ==========================================
-RED=$'\e[0;31m' # Warning Color
-NC=$'\e[0m' # No Color
 RHEL_REQ_VERSION_ID="10"
 RHEL_REQ_VERSION_CODENAME="Coughlan"
 UBUNTU_REQ_VERSION_ID="26.04"
@@ -112,6 +110,8 @@ DEBIAN_REQ_VERSION_ID="13"
 DEBIAN_REQ_VERSION_CODENAME="TRIXIE"
 ID="undefined"
 VERSION_ID="undefined"
+RED=$(printf '\033[0;31m')
+NC=$(printf '\033[0m')
 
 # ==========================================
 # Helper Scripts
