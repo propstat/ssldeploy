@@ -15,6 +15,7 @@
 . ./helpers/license_request.sh
 . ./helpers/mode_dev.sh
 . ./helpers/mode_prod.sh
+. ./request_host_certificate.sh
 
 # ==========================================
 # Variables
@@ -96,11 +97,39 @@ confirm_continue -n \
     on_no="echo 'You have not accepted the privacy agreement, the installation is cancelled.'; exit 1"
 
 # ==========================================
+# Select Mode and Write to .env
+# ==========================================
+
+cat << "EOF"
+
+=========================================================
+Development (default) or Production Mode
+=========================================================
+
+[y/Y] Development Mode (default choice) is meant for testing
+      and development purposes. It uses the built-in Flask
+      development server and includes the tailwind-cli.
+      It is not recommended for production use. Certificates 
+      will be generated using Let's Encrypt Staging servers.
+
+[n/N] Production Mode is meant for production use. It uses
+      gunicorn as the WSGI server and includes NGINX and
+      hardened firewall rules. Certificates will be generated
+      using Let's Encrypt Production servers.
+    
+=========================================================
+
+EOF
+
+mode_selector
+
+# ==========================================
 # Run Sub-Scripts
 # ==========================================
 
 license_request
 install_linux_dependencies
+request_host_certificate
 
 # ==========================================
 # Linux Dependencies
