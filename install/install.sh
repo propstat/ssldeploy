@@ -13,8 +13,7 @@
 . ./helpers/confirm_continue.sh
 . ./helpers/install_linux_dependencies.sh
 . ./helpers/license_request.sh
-. ./helpers/mode_dev.sh
-. ./helpers/mode_prod.sh
+. ./helpers/mode_selector.sh
 
 # ==========================================
 # Variables
@@ -128,7 +127,6 @@ mode_selector
 
 license_request
 install_linux_dependencies
-request_host_certificate
 
 # ==========================================
 # Linux Dependencies
