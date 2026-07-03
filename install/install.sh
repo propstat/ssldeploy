@@ -92,6 +92,7 @@ EOF
 confirm_continue -n \
     -startmsg="Do you accept the Privacy Agreement?" \
     -endmsg="You have accepted the privacy agreement." \
+    on_yes="echo 'You have accepted the privacy agreement.'; license_request" \
     on_no="echo 'You have not accepted the privacy agreement, the installation is cancelled.'; exit 1"
 
 # ==========================================
@@ -119,13 +120,17 @@ Development (default) or Production Mode
 
 EOF
 
-mode_selector
+confirm_continue -y \
+    -startmsg="Do you want to enable Development Mode?" \
+    -endmsg="Your selection has been written to the .env file." \
+    on_no="ssldeploymode='production'; mode_selector" \
+    on_yes="ssldeploymode='development'; mode_selector"
 
 # ==========================================
 # Run Sub-Scripts
 # ==========================================
 
-license_request
+
 install_linux_dependencies
 
 # ==========================================
