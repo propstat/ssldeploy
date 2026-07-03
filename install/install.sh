@@ -15,7 +15,6 @@
 . ./helpers/license_request.sh
 . ./helpers/mode_dev.sh
 . ./helpers/mode_prod.sh
-. ./request_host_certificate.sh
 
 # ==========================================
 # Variables
