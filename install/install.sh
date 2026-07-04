@@ -16,7 +16,7 @@
 . ./helpers/mode_selector.sh
 
 # ==========================================
-# Variables
+# Requirement Variables
 # ==========================================
 RHEL_REQ_VERSION_ID="10"
 RHEL_REQ_VERSION_CODENAME="Coughlan"
@@ -26,8 +26,14 @@ DEBIAN_REQ_VERSION_ID="13"
 DEBIAN_REQ_VERSION_CODENAME="TRIXIE"
 ID="undefined"
 VERSION_ID="undefined"
+
+# ==========================================
+# Installer Variables
+# ==========================================
 RED=$(printf '\033[0;31m')
 NC=$(printf '\033[0m')
+ENV_FILE="../.env"
+
 
 # ==========================================
 # Copyright & License Acceptance
@@ -92,7 +98,7 @@ EOF
 confirm_continue -n \
     -startmsg="Do you accept the Privacy Agreement?" \
     -endmsg="You have accepted the privacy agreement." \
-    on_yes="echo 'You have accepted the privacy agreement.'; license_request" \
+    on_yes="echo 'You have accepted the privacy agreement, proceeding with installation.'; license_request" \
     on_no="echo 'You have not accepted the privacy agreement, the installation is cancelled.'; exit 1"
 
 # ==========================================
@@ -127,17 +133,82 @@ confirm_continue -y \
     on_yes="ssldeploymode='development'; mode_selector"
 
 # ==========================================
-# Run Sub-Scripts
+# Install Dependencies
 # ==========================================
 
+cat << "EOF"
+
+=========================================================
+Installing Dependencies for SSLDeploy
+=========================================================
+
+The direct Linux Dependencies will now be installed.
+You will be asked later if you prefer to run SSLDeploy
+in any of the following two modes: 
+
+1) Production including NGINX and hardened Firewall rules
+   using gunicorn as the WSGI server (recommended for production)
+
+2) Development mode with the built-in Flask development server
+   (not recommended for production) including the tailwind-cli
+
+Following packages will be installed based on your Linux
+distribution:
+
+- python3
+- python3-pip
+- python3-venv
+- python3-dev
+- libffi-dev
+- libssl-dev
+- build-essential
+- libc-bin
+- sqlite3
+- certbot
+
+=========================================================
+
+EOF
 
 install_linux_dependencies
 
-# ==========================================
-# Linux Dependencies
-# ==========================================
+cat << "EOF"
 
+=========================================================
+Secret Key Generation
+=========================================================
 
+The script will now generate a 256 bit secret key for the
+Flask Application. This key is used for session management
+and should be kept secret. The key will be stored in the
+.env file in the root directory of the application. 
+
+=========================================================
+
+EOF
+
+# Generate new key (256-bit)
+SECRET_KEY=$(openssl rand -hex 32)
+
+# Ensure file exists
+[ -f "$ENV_FILE" ] || : > "$ENV_FILE"
+
+# Remove existing SECRET_KEY line if present
+# (portable approach without sed -i differences)
+tmp_file=$(mktemp) || exit 1
+grep -v '^SECRET_KEY=' "$ENV_FILE" > "$tmp_file" 2>/dev/null || true
+
+# Write cleaned content back
+cat "$tmp_file" > "$ENV_FILE"
+rm -f "$tmp_file"
+
+# Append new key using printf
+printf 'SECRET_KEY=%s\n' "$SECRET_KEY" >> "$ENV_FILE"
+
+# Optional: output confirmation (without exposing full key)
+printf 'New SECRET_KEY generated and written to %s\n' "$ENV_FILE"
+
+unset SECRET_KEY tmp_file
 
 cat << EOF
 
