@@ -11,6 +11,8 @@ NC=$(printf '\033[0m')
 # LOGO
 # ==========================================
 cat << EOF
+
+
 =========================================================
 
             il*%%%%*             i%%%%%%%           
@@ -91,8 +93,9 @@ install() {
         cd "$HOME"
         
         rm -rf "$TARGET_DIR"
+        GIT_LFS_SKIP_SMUDGE=1
         git clone "$REPO_URL" "$TARGET_DIR"
-        
+        unset GIT_LFS_SKIP_SMUDGE
         # Change into the directory to work locally
         cd "$TARGET_DIR"
     fi
