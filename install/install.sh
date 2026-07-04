@@ -146,14 +146,15 @@ The direct Linux Dependencies will now be installed.
 You will be asked later if you prefer to run SSLDeploy
 in any of the following two modes: 
 
-1) Production including NGINX and hardened Firewall rules
-   using gunicorn as the WSGI server (recommended for production)
+Development     Using the built-in Flask development
+                server (not recommended for production)
+                including the tailwind-cli
 
-2) Development mode with the built-in Flask development server
-   (not recommended for production) including the tailwind-cli
+Production      Including NGINX and hardened Firewall rules
+                using gunicorn as the WSGI server
+                (recommended for production)
 
-Following packages will be installed based on your Linux
-distribution:
+Following packages will be alway installed:
 
 - python3
 - python3-pip
@@ -165,6 +166,19 @@ distribution:
 - libc-bin
 - sqlite3
 - certbot
+
+Following Packages are only installed for development:
+
+- git-lfs to download the tailwind-cli from the repo
+- tailwind-cli
+
+Following Packages are only installed for development:
+
+- gunicorn
+- nginx
+
+The respective licenses can be found in the documentation
+folder.
 
 =========================================================
 
