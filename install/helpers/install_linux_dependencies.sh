@@ -227,8 +227,9 @@ install_linux_dependencies() {
     esac
     printf "Downloading Tailwind Client/n"
     cd ../
-    git
+    git lfs pull
     find ../tools/tailwind -type f -name 'tailwindcss*' -exec chmod +x {} +
+    cd ./install
     fi
 
     echo "========================================================="
