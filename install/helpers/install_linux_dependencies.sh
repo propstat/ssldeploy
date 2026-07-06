@@ -22,10 +22,19 @@ install_linux_dependencies() {
         return 1
     fi
 
+    case "$SSLDEPLOY_MODE" in
+        development|production)
+            ;;
+        *)
+            echo "Error: unsupported ssldeployMode: $SSLDEPLOY_MODE" >&2
+            return 1
+            ;;
+    esac
+
     echo "Deployment mode: $SSLDEPLOY_MODE"
 
     # -------------------------
-    # Base packages
+    # Package definitions
     # -------------------------
     DEB_PKGS="python3 python3-pip python3-venv python3-dev libffi-dev libssl-dev build-essential libc-bin sqlite3 certbot curl"
     RHEL_PKGS="python3 python3-pip python3-devel libffi-devel openssl-devel gcc glibc-common sqlite certbot curl"
@@ -33,16 +42,17 @@ install_linux_dependencies() {
     ARCH_PKGS="python python-pip libffi openssl base-devel glibc sqlite certbot curl"
     ALPINE_PKGS="python3 py3-pip python3-dev libffi-dev openssl-dev build-base libc-utils sqlite certbot curl"
 
-    # -------------------------
-    # Production packages
-    # -------------------------
     DEB_PROD_PKGS="nginx ufw gunicorn"
     RHEL_PROD_PKGS="nginx firewalld python3-gunicorn"
     SUSE_PROD_PKGS="nginx firewalld python3-gunicorn"
     ARCH_PROD_PKGS="nginx ufw gunicorn"
     ALPINE_PROD_PKGS="nginx ufw py3-gunicorn"
 
+    # -------------------------
+    # Privileges
+    # -------------------------
     echo "Checking privileges..."
+
     if [ "$(id -u)" -ne 0 ]; then
         if command -v sudo >/dev/null 2>&1; then
             SUDO_CMD="sudo"
@@ -52,7 +62,11 @@ install_linux_dependencies() {
         fi
     fi
 
+    # -------------------------
+    # OS detection
+    # -------------------------
     echo "Detecting OS..."
+
     if [ -f /etc/os-release ]; then
         . /etc/os-release
     else
@@ -66,11 +80,19 @@ install_linux_dependencies() {
         sles|opensuse*) FAMILY="suse" ;;
         arch) FAMILY="arch" ;;
         alpine) FAMILY="alpine" ;;
-        *) echo "Unsupported OS: $ID" >&2; return 1 ;;
+        *)
+            echo "Unsupported OS: $ID" >&2
+            return 1
+            ;;
     esac
 
+    # -------------------------
+    # Base packages
+    # -------------------------
     echo "Installing base packages..."
+
     pkgs=""
+
     case "$FAMILY" in
         debian)
             $SUDO_CMD apt-get update -y
@@ -80,7 +102,7 @@ install_linux_dependencies() {
         rhel)
             PKG_MAN=$(command -v dnf || command -v yum)
             for pkg in $RHEL_PKGS; do pkgs="$pkgs $pkg"; done
-            $SUDO_CMD $PKG_MAN install -y $pkgs
+            $SUDO_CMD "$PKG_MAN" install -y $pkgs
             ;;
         suse)
             $SUDO_CMD zypper --non-interactive refresh
@@ -98,12 +120,14 @@ install_linux_dependencies() {
             ;;
     esac
 
-    # -------------------------
+        # -------------------------
     # Production dependencies
     # -------------------------
     if [ "$SSLDEPLOY_MODE" = "production" ]; then
         echo "Installing production packages..."
+
         pkgs=""
+
         case "$FAMILY" in
             debian)
                 for pkg in $DEB_PROD_PKGS; do pkgs="$pkgs $pkg"; done
@@ -111,7 +135,7 @@ install_linux_dependencies() {
                 ;;
             rhel)
                 for pkg in $RHEL_PROD_PKGS; do pkgs="$pkgs $pkg"; done
-                $SUDO_CMD $PKG_MAN install -y $pkgs
+                $SUDO_CMD "$PKG_MAN" install -y $pkgs
                 ;;
             suse)
                 for pkg in $SUSE_PROD_PKGS; do pkgs="$pkgs $pkg"; done
@@ -129,9 +153,10 @@ install_linux_dependencies() {
     fi
 
     # -------------------------
-    # Tailwind CLI INSTALLER (development only)
+    # Tailwind CLI (development only)
     # -------------------------
     if [ "$SSLDEPLOY_MODE" = "development" ]; then
+
         echo "Installing Tailwind CLI..."
 
         if [ ! -f ./.install ]; then
@@ -146,14 +171,26 @@ install_linux_dependencies() {
             return 1
         fi
 
+        # -------------------------
+        # Determine Tailwind artifact
+        # -------------------------
         ARCH=$(uname -m)
+
         case "$ARCH" in
-            x86_64|amd64) ARCH="x64" ;;
-            aarch64|arm64) ARCH="arm64" ;;
-            *) echo "Unsupported arch: $ARCH" >&2; return 1 ;;
+            x86_64|amd64)
+                ARCH="x64"
+                ;;
+            aarch64|arm64)
+                ARCH="arm64"
+                ;;
+            *)
+                echo "Unsupported arch: $ARCH" >&2
+                return 1
+                ;;
         esac
 
         OS="$(uname -s)"
+
         LIBC="gnu"
         if ldd --version 2>&1 | grep -qi musl; then
             LIBC="musl"
@@ -162,13 +199,13 @@ install_linux_dependencies() {
         case "$OS" in
             Linux)
                 if [ "$LIBC" = "musl" ]; then
-                    FILE="tailwindcss-linux-${ARCH}-musl"
+                    TAILWIND_RELEASE_BINARY_NAME="tailwindcss-linux-${ARCH}-musl"
                 else
-                    FILE="tailwindcss-linux-${ARCH}"
+                    TAILWIND_RELEASE_BINARY_NAME="tailwindcss-linux-${ARCH}"
                 fi
                 ;;
             Darwin)
-                FILE="tailwindcss-macos-${ARCH}"
+                TAILWIND_RELEASE_BINARY_NAME="tailwindcss-macos-${ARCH}"
                 ;;
             *)
                 echo "Unsupported OS: $OS" >&2
@@ -176,57 +213,105 @@ install_linux_dependencies() {
                 ;;
         esac
 
+        # -------------------------
+        # Download locations
+        # -------------------------
         TAILWIND_DIR="../tools/tailwind"
-        TAILWIND_FILE="$TAILWIND_DIR/tailwind-cli"
-        TAILWIND_URL="https://github.com/tailwindlabs/tailwindcss/releases/download/v${TAILWIND_VERSION}/${FILE}"
 
+        TAILWIND_BINARY_FILE="$TAILWIND_DIR/$TAILWIND_RELEASE_BINARY_NAME"
+
+        TAILWIND_SYMLINK_FILE="$TAILWIND_DIR/tailwind-cli"
+
+        TAILWIND_URL="https://github.com/tailwindlabs/tailwindcss/releases/download/v${TAILWIND_VERSION}/${TAILWIND_RELEASE_BINARY_NAME}"
+        
         mkdir -p "$TAILWIND_DIR" || return 1
 
+        # -------------------------
+        # Download binary
+        # -------------------------
         echo "Downloading Tailwind CLI..."
-        rm -f "$TAILWIND_FILE"
+        echo "Version: $TAILWIND_VERSION"
+        echo "TAILWIND URL: $TAILWIND_URL"
+        rm -f "$TAILWIND_BINARY_FILE"
 
         if command -v curl >/dev/null 2>&1; then
-            curl -L -o "$TAILWIND_FILE" "$TAILWIND_URL" || return 1
+            curl -L -o "$TAILWIND_BINARY_FILE" "$TAILWIND_URL" || return 1
         else
-            wget -O "$TAILWIND_FILE" "$TAILWIND_URL" || return 1
+            wget -O "$TAILWIND_BINARY_FILE" "$TAILWIND_URL" || return 1
         fi
 
-        chmod +x "$TAILWIND_FILE" || return 1
+        chmod +x "$TAILWIND_BINARY_FILE" || return 1
 
-        echo "Optional checksum verification..."
+        # -------------------------
+        # Verify checksum
+        # -------------------------
+        echo "Verifying checksum..."
 
         TAILWIND_CHECKSUM_URL="https://github.com/tailwindlabs/tailwindcss/releases/download/v${TAILWIND_VERSION}/sha256sums.txt"
+
         TAILWIND_CHECKSUM_FILE="/tmp/tailwind.sha256"
 
         if curl -fsSL "$TAILWIND_CHECKSUM_URL" -o "$TAILWIND_CHECKSUM_FILE" 2>/dev/null || \
            wget -q "$TAILWIND_CHECKSUM_URL" -O "$TAILWIND_CHECKSUM_FILE" 2>/dev/null; then
 
-            EXPECTED=$(grep " $FILE\$" "$TAILWIND_CHECKSUM_FILE" | awk '{print $1}')
+            EXPECTED=$(grep " \./$TAILWIND_RELEASE_BINARY_NAME$" "$TAILWIND_CHECKSUM_FILE" | awk '{print $1}')
 
-            if [ -n "$EXPECTED" ]; then
-                if command -v sha256sum >/dev/null 2>&1; then
-                    ACTUAL=$(sha256sum "$TAILWIND_FILE" | awk '{print $1}')
-                else
-                    ACTUAL=$(shasum -a 256 "$TAILWIND_FILE" | awk '{print $1}')
-                fi
-
-                if [ "$EXPECTED" != "$ACTUAL" ]; then
-                    echo "Error: checksum mismatch" >&2
-                    return 1
-                fi
-
-                echo "Checksum verified."
-            else
-                echo "Warning: checksum not found, skipping verification."
+            if [ -z "$EXPECTED" ]; then
+                echo "Error: checksum entry not found for $TAILWIND_RELEASE_BINARY_NAME" >&2
+                return 1
             fi
+
+            if command -v sha256sum >/dev/null 2>&1; then
+                ACTUAL=$(sha256sum "$TAILWIND_BINARY_FILE" | awk '{print $1}')
+            else
+                ACTUAL=$(shasum -a 256 "$TAILWIND_BINARY_FILE" | awk '{print $1}')
+            fi
+
+            if [ "$EXPECTED" != "$ACTUAL" ]; then
+                echo "Error: checksum mismatch" >&2
+                return 1
+            fi
+
+            echo "Checksum verified."
+
         else
-            echo "Warning: no checksum file found, skipping verification."
+            echo "Warning: checksum file unavailable, skipping verification."
         fi
 
-        echo "Tailwind CLI installed at $TAILWIND_FILE"
+        # -------------------------
+        # Create stable symlink
+        # -------------------------
+        echo "Creating Tailwind symlink..."
+
+        rm -f "$TAILWIND_SYMLINK_FILE"
+
+        ln -s "$TAILWIND_RELEASE_BINARY_NAME" "$TAILWIND_SYMLINK_FILE" || return 1
+
+        echo "Tailwind CLI installed:"
+        echo "$TAILWIND_SYMLINK_FILE -> $TAILWIND_RELEASE_BINARY_NAME"
+
     else
-        echo "Skipping Tailwind installation (not in development mode)."
+        echo "Skipping Tailwind CLI installation (production mode)."
     fi
 
+    # -------------------------
+    # Cleanup
+    # -------------------------
     echo "All dependencies installed successfully!"
+
+    unset SUDO_CMD ID ID_LIKE NAME FAMILY PKG_MAN
+    unset pkgs pkg
+    unset SSLDEPLOY_MODE
+
+    unset DEB_PKGS RHEL_PKGS SUSE_PKGS ARCH_PKGS ALPINE_PKGS
+    unset DEB_PROD_PKGS RHEL_PROD_PKGS SUSE_PROD_PKGS ARCH_PROD_PKGS ALPINE_PROD_PKGS
+
+    unset TAILWIND_VERSION
+    unset TAILWIND_RELEASE_BINARY_NAME
+    unset TAILWIND_DIR
+    unset TAILWIND_BINARY_FILE
+    unset TAILWIND_SYMLINK_FILE
+    unset TAILWIND_URL
+    unset TAILWIND_CHECKSUM_URL
+    unset TAILWIND_CHECKSUM_FILE
 }
