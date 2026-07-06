@@ -70,7 +70,8 @@ fi
 confirm_continue -n \
     -startmsg="Do you accept the License Agreement?" \
     -endmsg="You have accepted the license agreement." \
-    on_no="echo 'You have not accepted the license agreement, the installation is cancelled.'; exit 1"
+    on_no="echo 'You have not accepted the license agreement, the installation is cancelled.'; exit 1" \
+    on_yes="echo 'Thank you for accepting the license agreement, proceeding with installation...'"
 
 cat << "EOF"
 
@@ -185,6 +186,7 @@ folder.
 EOF
 
 install_linux_dependencies
+license_request # Requires SSH, therefor happening after dependencies are installed.
 
 cat << "EOF"
 

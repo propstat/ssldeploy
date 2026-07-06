@@ -1,25 +1,24 @@
 #!/bin/sh
-# Source this file: . ./helpers/install_requirements.sh
+# Source this file: . ./install_linux_dependencies.sh
 
 install_linux_dependencies() {
-    # Declare local variables to prevent polluting the user's parent shell environment
-    # Note: local is widely supported by targeted distros' /bin/sh (dash, ash, bash)
     local SUDO_CMD="" ID="" ID_LIKE="" NAME="" FAMILY="" PKG_MAN=""
     local DEB_PKGS="" RHEL_PKGS="" SUSE_PKGS="" ARCH_PKGS="" ALPINE_PKGS=""
+    local DEB_PROD_PKGS="" RHEL_PROD_PKGS="" SUSE_PROD_PKGS="" ARCH_PROD_PKGS="" ALPINE_PROD_PKGS=""
+    local DEB_DEV_PKGS="" RHEL_DEV_PKGS="" SUSE_DEV_PKGS="" ARCH_DEV_PKGS="" ALPINE_DEV_PKGS=""
     local pkgs="" pkg=""
 
-    # POSIX-compliant whitespace-separated package lists
-    DEB_PKGS="python3 python3-pip python3-venv python3-dev libffi-dev libssl-dev build-essential libc-bin sqlite3 certbot"
-    RHEL_PKGS="python3 python3-pip python3-devel libffi-devel openssl-devel gcc glibc-common sqlite certbot"
-    SUSE_PKGS="python3 python3-pip python3-devel libffi-devel libopenssl-devel gcc glibc sqlite3 certbot"
-    ARCH_PKGS="python python-pip libffi openssl base-devel glibc sqlite certbot"
-    ALPINE_PKGS="python3 py3-pip python3-dev libffi-dev openssl-dev build-base libc-utils sqlite certbot"
+    DEB_PKGS="python3 python3-pip python3-venv python3-dev libffi-dev libssl-dev build-essential libc-bin sqlite3 certbot curl"
+    RHEL_PKGS="python3 python3-pip python3-devel libffi-devel openssl-devel gcc glibc-common sqlite certbot curl"
+    SUSE_PKGS="python3 python3-pip python3-devel libffi-devel libopenssl-devel gcc glibc sqlite3 certbot curl"
+    ARCH_PKGS="python python-pip libffi openssl base-devel glibc sqlite certbot curl"
+    ALPINE_PKGS="python3 py3-pip python3-dev libffi-dev openssl-dev build-base libc-utils sqlite certbot curl"
 
-    DEB_PROD_PKGS="nginx ufw"
-    RHEL_PROD_PKGS="nginx firewalld"
-    SUSE_PROD_PKGS="nginx firewalld"
-    ARCH_PROD_PKGS="nginx ufw"
-    ALPINE_PROD_PKGS="nginx ufw"
+    DEB_PROD_PKGS="nginx ufw gunicorn"
+    RHEL_PROD_PKGS="nginx firewalld python3-gunicorn"
+    SUSE_PROD_PKGS="nginx firewalld python3-gunicorn"
+    ARCH_PROD_PKGS="nginx ufw gunicorn"
+    ALPINE_PROD_PKGS="nginx ufw py3-gunicorn"
 
     DEB_DEV_PKGS="git-lfs"
     RHEL_DEV_PKGS="git-lfs"
@@ -27,218 +26,162 @@ install_linux_dependencies() {
     ARCH_DEV_PKGS="git-lfs"
     ALPINE_DEV_PKGS="git-lfs"
 
-
-    read -n 1 -s -r -p "Press any key to continue"
-    echo "Determining if SUDO is required..."
+    echo "Checking privileges..."
     if [ "$(id -u)" -ne 0 ]; then
         if command -v sudo >/dev/null 2>&1; then
-            echo "Privilege escalation required. Prompting for sudo..."
             SUDO_CMD="sudo"
         else
-            echo "Error: This script requires root privileges, but 'sudo' is not installed." >&2
+            echo "Error: sudo required but not installed." >&2
             return 1
         fi
     fi
 
-    echo "Identifying Distribution..."
+    echo "Detecting OS..."
     if [ -f /etc/os-release ]; then
-        # Source the configuration file to load ID, ID_LIKE, and NAME in one go
         . /etc/os-release
     else
-        echo "Error: Cannot detect OS distribution (/etc/os-release missing)." >&2
+        echo "Error: missing /etc/os-release" >&2
         return 1
     fi
 
-    echo "Detected OS: $NAME"
-    echo "Updating package manager and installing dependencies..."
-    echo "========================================================="
-
-    echo "Mapping OS to standard internal family names..."
     case "$ID" in
-        ubuntu|debian)                  FAMILY="debian" ;;
-        rhel|centos|fedora|rocky|alma)  FAMILY="rhel" ;;
-        sles|opensuse*)                 FAMILY="suse" ;;
-        arch)                           FAMILY="arch" ;;
-        alpine)                         FAMILY="alpine" ;;
-        *)
-            # Fallback check via ID_LIKE
-            case "$ID_LIKE" in
-                *ubuntu*|*debian*)      FAMILY="debian" ;;
-                *rhel*|*fedora*)        FAMILY="rhel" ;;
-                *suse*)                 FAMILY="suse" ;;
-                *arch*)                 FAMILY="arch" ;;
-                *alpine*)               FAMILY="alpine" ;;
-            esac
-            ;;
+        ubuntu|debian) FAMILY="debian" ;;
+        rhel|centos|fedora|rocky|alma) FAMILY="rhel" ;;
+        sles|opensuse*) FAMILY="suse" ;;
+        arch) FAMILY="arch" ;;
+        alpine) FAMILY="alpine" ;;
+        *) echo "Unsupported OS: $ID" >&2; return 1 ;;
     esac
 
-    # Execute installation based on mapped family using POSIX expansion safely unquoted for word splitting
+    echo "Installing base packages..."
     case "$FAMILY" in
         debian)
-            local DEBIAN_FRONTEND=noninteractive
-            export DEBIAN_FRONTEND
             $SUDO_CMD apt-get update -y
-            # Loop over whitespace string sequentially to ensure word compliance without arrays
-            for pkg in $DEB_PKGS; do
-                pkgs="$pkgs $pkg"
-            done
+            for pkg in $DEB_PKGS; do pkgs="$pkgs $pkg"; done
             $SUDO_CMD apt-get install -y $pkgs
             ;;
         rhel)
             PKG_MAN=$(command -v dnf || command -v yum)
-            for pkg in $RHEL_PKGS; do
-                pkgs="$pkgs $pkg"
-            done
+            for pkg in $RHEL_PKGS; do pkgs="$pkgs $pkg"; done
             $SUDO_CMD $PKG_MAN install -y $pkgs
             ;;
         suse)
             $SUDO_CMD zypper --non-interactive refresh
-            for pkg in $SUSE_PKGS; do
-                pkgs="$pkgs $pkg"
-            done
+            for pkg in $SUSE_PKGS; do pkgs="$pkgs $pkg"; done
             $SUDO_CMD zypper --non-interactive install -y $pkgs
             ;;
         arch)
-            for pkg in $ARCH_PKGS; do
-                pkgs="$pkgs $pkg"
-            done
+            for pkg in $ARCH_PKGS; do pkgs="$pkgs $pkg"; done
             $SUDO_CMD pacman -Syu --noconfirm --needed $pkgs
             ;;
         alpine)
             $SUDO_CMD apk update
-            for pkg in $ALPINE_PKGS; do
-                pkgs="$pkgs $pkg"
-            done
+            for pkg in $ALPINE_PKGS; do pkgs="$pkgs $pkg"; done
             $SUDO_CMD apk add $pkgs
             ;;
-        *)
-            echo "Error: Unsupported distribution: $ID" >&2
-            return 1
-            ;;
     esac
-    
-    if [ -f ../.env ] && grep -q '^ssldeployMode=development[[:space:]]*$' ../.env; then
-    printf "Development Mode detected...\n"
-    printf "Installing Development Dependencies...\n"
-        case "$FAMILY" in
-        debian)
-            local DEBIAN_FRONTEND=noninteractive
-            export DEBIAN_FRONTEND
-            $SUDO_CMD apt-get update -y
-            # Loop over whitespace string sequentially to ensure word compliance without arrays
-            for pkg in $DEB_DEV_PKGS; do
-                pkgs="$pkgs $pkg"
-            done
-            $SUDO_CMD apt-get install -y $pkgs
-            ;;
-        rhel)
-            PKG_MAN=$(command -v dnf || command -v yum)
-            for pkg in $RHEL_PROD_PKGS; do
-                pkgs="$pkgs $pkg"
-            done
-            printf "Extra Packages for Enterprise Linux will be activated\n"
-            $SUDO_CMD $PKG_MAN install -y epel-release
-            $SUDO_CMD $PKG_MAN install -y $pkgs
-            ;;
-        suse)
-            $SUDO_CMD zypper --non-interactive refresh
-            for pkg in $SUSE_PROD_PKGS; do
-                pkgs="$pkgs $pkg"
-            done
-            $SUDO_CMD zypper --non-interactive install -y $pkgs
-            ;;
-        arch)
-            for pkg in $ARCH_PROD_PKGS; do
-                pkgs="$pkgs $pkg"
-            done
-            $SUDO_CMD pacman -Syu --noconfirm --needed $pkgs
-            ;;
-        alpine)
-            printf "Community Packages will be added to the repository\n"
-            $SUDO_CMD echo "http://dl-cdn.alpinelinux.org/alpine/latest-stable/community" >> /etc/apk/repositories
-            $SUDO_CMD apk update
-            $SUDO_CMD apk add git-lfs
-            for pkg in $ALPINE_PROD_PKGS; do
-                pkgs="$pkgs $pkg"
-            done
-            $SUDO_CMD apk add $pkgs
-            ;;
-        *)
-            echo "Error: Unsupported distribution: $ID" >&2
-            return 1
-            ;;
-    esac
-    printf "Downloading Tailwind Client\n"
-    cd ../
-    git lfs pull
-    find ../tools/tailwind -type f -name 'tailwindcss*' -exec chmod +x {} +
+
+    # -------------------------
+    # Tailwind CLI INSTALLER
+    # -------------------------
+    echo "Installing Tailwind CLI..."
+
+    if [ ! -f ./.install ]; then
+        echo "Error: ./.install missing" >&2
+        return 1
     fi
 
-    if [ -f ../.env ] && grep -q '^ssldeployMode=production[[:space:]]*$' ../.env; then
-    printf "Production Mode detected...\n"
-    printf "Installing Production Dependencies...\n"
-        case "$FAMILY" in
-        debian)
-            local DEBIAN_FRONTEND=noninteractive
-            export DEBIAN_FRONTEND
-            $SUDO_CMD apt-get update -y
-            # Loop over whitespace string sequentially to ensure word compliance without arrays
-            for pkg in $DEB_PROD_PKGS; do
-                pkgs="$pkgs $pkg"
-            done
-            $SUDO_CMD apt-get install -y $pkgs
+    TAILWIND_VERSION=$(grep '^supported_tailwind-cli=' ./.install | cut -d '=' -f2)
+
+    if [ -z "$TAILWIND_VERSION" ]; then
+        echo "Error: Tailwind version not defined" >&2
+        return 1
+    fi
+
+    ARCH=$(uname -m)
+    case "$ARCH" in
+        x86_64|amd64) ARCH="x64" ;;
+        aarch64|arm64) ARCH="arm64" ;;
+        *) echo "Unsupported arch: $ARCH" >&2; return 1 ;;
+    esac
+
+    OS="$(uname -s)"
+    LIBC="gnu"
+    if ldd --version 2>&1 | grep -qi musl; then
+        LIBC="musl"
+    fi
+
+    case "$OS" in
+        Linux)
+            if [ "$LIBC" = "musl" ]; then
+                FILE="tailwindcss-linux-${ARCH}-musl"
+            else
+                FILE="tailwindcss-linux-${ARCH}"
+            fi
             ;;
-        rhel)
-            PKG_MAN=$(command -v dnf || command -v yum)
-            for pkg in $RHEL_DEV_PKGS; do
-                pkgs="$pkgs $pkg"
-            done
-            printf "Extra Packages for Enterprise Linux will be activated\n"
-            $SUDO_CMD $PKG_MAN install -y epel-release
-            $SUDO_CMD $PKG_MAN install -y $pkgs
-            ;;
-        suse)
-            $SUDO_CMD zypper --non-interactive refresh
-            for pkg in $SUSE_DEV_PKGS; do
-                pkgs="$pkgs $pkg"
-            done
-            $SUDO_CMD zypper --non-interactive install -y $pkgs
-            ;;
-        arch)
-            for pkg in $ARCH_DEV_PKGS; do
-                pkgs="$pkgs $pkg"
-            done
-            $SUDO_CMD pacman -Syu --noconfirm --needed $pkgs
-            ;;
-        alpine)
-            printf "Community Packages will be added to the repository\n"
-            $SUDO_CMD echo "http://dl-cdn.alpinelinux.org/alpine/latest-stable/community" >> /etc/apk/repositories
-            $SUDO_CMD apk update
-            $SUDO_CMD apk add git-lfs
-            for pkg in $ALPINE_DEV_PKGS; do
-                pkgs="$pkgs $pkg"
-            done
-            $SUDO_CMD apk add $pkgs
+        Darwin)
+            FILE="tailwindcss-macos-${ARCH}"
             ;;
         *)
-            echo "Error: Unsupported distribution: $ID" >&2
+            echo "Unsupported OS: $OS" >&2
             return 1
             ;;
     esac
-    printf "Downloading Tailwind Client\n"
-    cd ../
-    git lfs fetch --all
-    git lfs pull
-    find ./tools/tailwind -type f -name 'tailwindcss*' -exec chmod +x {} +
-    cd ./install
+
+    TAILWIND_DIR="../tools/tailwind"
+    TAILWIND_FILE="$TAILWIND_DIR/tailwind-cli"
+    TAILWIND_URL="https://github.com/tailwindlabs/tailwindcss/releases/download/v${TAILWIND_VERSION}/${FILE}"
+
+    mkdir -p "$TAILWIND_DIR" || return 1
+
+    echo "Downloading Tailwind CLI..."
+    rm -f "$TAILWIND_FILE"
+
+    if command -v curl >/dev/null 2>&1; then
+        curl -L -o "$TAILWIND_FILE" "$TAILWIND_URL" || return 1
+    else
+        wget -O "$TAILWIND_FILE" "$URL" || return 1
     fi
 
-    echo "========================================================="
-    printf "Cleaning up variables..."
-    # Complete environmental purge
-    unset SUDO_CMD ID ID_LIKE NAME FAMILY PKG_MAN DEB_PKGS RHEL_PKGS SUSE_PKGS ARCH_PKGS ALPINE_PKGS pkgs pkg
-    unset VERSION_ID VERSION PRETTY_NAME HOME_URL SUPPORT_URL BUG_REPORT_URL DOCUMENTATION_URL LOGO DEBIAN_FRONTEND
-    unset DEB__PROD_PKGS RHEL_PROD_PKGS SUSE_PROD_PKGS ARCH_PROD_PKGS ALPINE_PROD_PKGS
-    unset DEB__DEV_PKGS RHEL_DEV_PKGS SUSE_DEV_PKGS ARCH_DEV_PKGS ALPINE_DEV_PKGS
-    echo "All dependencies successfully installed!"
+    chmod +x "$TAILWIND_FILE" || return 1
+
+    echo "Optional checksum verification..."
+
+    TAILWIND_CHECKSUM_URL="https://github.com/tailwindlabs/tailwindcss/releases/download/v${TAILWIND_VERSION}/sha256sums.txt"
+    TAILWIND_CHECKSUM_FILE="/tmp/tailwind.sha256"
+
+    if curl -fsSL "$TAILWIND_CHECKSUM_URL" -o "$TAILWIND_CHECKSUM_FILE" 2>/dev/null || \
+       wget -q "$TAILWIND_CHECKSUM_URL" -O "$TAILWIND_CHECKSUM_FILE" 2>/dev/null; then
+
+        EXPECTED=$(grep " $FILE\$" "$TAILWIND_CHECKSUM_FILE" | awk '{print $1}')
+
+        if [ -n "$EXPECTED" ]; then
+            if command -v sha256sum >/dev/null 2>&1; then
+                ACTUAL=$(sha256sum "$TAILWIND_FILE" | awk '{print $1}')
+            else
+                ACTUAL=$(shasum -a 256 "$TAILWIND_FILE" | awk '{print $1}')
+            fi
+
+            if [ "$EXPECTED" != "$ACTUAL" ]; then
+                echo "Error: checksum mismatch" >&2
+                return 1
+            fi
+
+            echo "Checksum verified."
+        else
+            echo "Warning: checksum not found, skipping verification."
+        fi
+    else
+        echo "Warning: no checksum file found, skipping verification."
+    fi
+
+    echo "Tailwind CLI installed at $TAILWIND_FILE"
+
+    echo "Cleaning up variables..."
+    unset SUDO_CMD ID ID_LIKE NAME FAMILY PKG_MAN pkgs pkg
+    unset DEB_PKGS RHEL_PKGS SUSE_PKGS ARCH_PKGS ALPINE_PKGS
+    unset DEB_PROD_PKGS RHEL_PROD_PKGS SUSE_PROD_PKGS ARCH_PROD_PKGS ALPINE_PROD_PKGS
+    unset DEB_DEV_PKGS RHEL_DEV_PKGS SUSE_DEV_PKGS ARCH_DEV_PKGS ALPINE_DEV_PKGS
+    unset TAILWIND_VERSION TAILWIND_DIR TAILWIND_FILE TAILWIND_URL TAILWIND_CHECKSUM_URL TAILWIND_CHECKSUM_FILE
+    echo "All dependencies installed successfully!"
 }
