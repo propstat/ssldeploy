@@ -99,7 +99,7 @@ EOF
 confirm_continue -n \
     -startmsg="Do you accept the Privacy Agreement?" \
     -endmsg="You have accepted the privacy agreement." \
-    on_yes="echo 'You have accepted the privacy agreement, proceeding with installation.'; license_request" \
+    on_yes="echo 'You have accepted the privacy agreement, proceeding with installation.'" \
     on_no="echo 'You have not accepted the privacy agreement, the installation is cancelled.'; exit 1"
 
 # ==========================================
@@ -170,7 +170,6 @@ Following packages will be alway installed:
 
 Following Packages are only installed for development:
 
-- git-lfs to download the tailwind-cli from the repo
 - tailwind-cli
 
 Following Packages are only installed for development:

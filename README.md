@@ -26,13 +26,18 @@ To request an increase of rate limits [visit this link](https://isrg.formstack.c
 
 ### Installation
 
-Run following command to start the installation wizard (requires internet connection).
+Run following command to start the installation wizard (requires internet connection). You will be able to select the development or production mode 
+during installation with the appropriate dependencies automatically installed. 
 
 ```bash
 sh -c 'tmp=$(mktemp) || exit 1; url="https://raw.githubusercontent.com/propstat/ssldeploy/main/install/ssldeploy-setup-wizard.sh"; url="$url?nocache=$(date +%s)"; if command -v curl >/dev/null 2>&1; then curl -fsSL "$url" -o "$tmp"; elif command -v wget >/dev/null 2>&1; then wget -qO "$tmp" "$url"; else echo "Error: need curl or wget" >&2; exit 1; fi; chmod +x "$tmp"; sh "$tmp"'
 ```
 
 ### Development & Debug Mode
+
+> [!CAUTION]
+> While you can develop on MacOS (as we personally do) you should always test on supported Linux systems.  
+
 1. Navigate to the folder.
 2. Activate venv with `source venv/bin/activate`.
 3. Define the python.py as FLASK_APP by `export FLASK_APP=ssldeploy.py`.
