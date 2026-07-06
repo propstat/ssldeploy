@@ -1,1 +1,2 @@
+# Defines non PIP / Package dependencies
 supported_tailwind-cli=4.3.2
