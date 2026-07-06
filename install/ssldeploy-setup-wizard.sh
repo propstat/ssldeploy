@@ -70,7 +70,7 @@ choice="install"
 if [ -d "$TARGET_DIR" ]; then
     echo "Directory already exists: $TARGET_DIR"
     echo "What do you want to do?"
-    echo "1) Update (WARNING EXPERIMENTAL)"
+    echo "1) Update (NOT IMPLEMENTED YET)"
     echo "2) Remove"
     echo "3) Exit"
     read -rp "Choose [1-3]: " choice
@@ -79,7 +79,7 @@ else
 fi
 
 install() {
-    echo "Installing / Updating..."
+    echo "Starting installation..."
 
     # Safe clone or update
     if [ -d "$TARGET_DIR/.git" ]; then
@@ -93,10 +93,7 @@ install() {
         cd "$HOME"
         
         rm -rf "$TARGET_DIR"
-        GIT_LFS_SKIP_SMUDGE=1
         git clone "$REPO_URL" "$TARGET_DIR"
-        unset GIT_LFS_SKIP_SMUDGE
-        # Change into the directory to work locally
         cd "$TARGET_DIR"
     fi
 
