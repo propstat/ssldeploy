@@ -166,7 +166,7 @@ install_linux_dependencies() {
             return 1
         fi
 
-        TAILWIND_VERSION=$(grep '^supported_tailwind-cli=' ./.install | cut -d '=' -f2)
+        TAILWIND_VERSION=$(grep '^supported_tailwind-cli=' ./.install | cut -d '=' -f2 | tr -d '\r"'\''')
 
         if [ -z "$TAILWIND_VERSION" ]; then
             echo "Error: Tailwind version not defined" >&2
@@ -237,7 +237,7 @@ install_linux_dependencies() {
         rm -f "$TAILWIND_BINARY_FILE"
 
         if command -v curl >/dev/null 2>&1; then
-            curl -L -o "$TAILWIND_BINARY_FILE" "$TAILWIND_URL" || return 1
+            curl -fL -o "$TAILWIND_BINARY_FILE" "$TAILWIND_URL" || return 1
         else
             wget -O "$TAILWIND_BINARY_FILE" "$TAILWIND_URL" || return 1
         fi
@@ -271,13 +271,16 @@ install_linux_dependencies() {
 
             if [ "$EXPECTED" != "$ACTUAL" ]; then
                 echo "Error: checksum mismatch" >&2
+                rm -f "$TAILWIND_BINARY_FILE"
                 return 1
             fi
 
             echo "Checksum verified."
 
         else
-            echo "Warning: checksum file unavailable, skipping verification."
+            echo "Error: checksum file unavailable, aborting." >&2
+            rm -f "$TAILWIND_BINARY_FILE"
+            return 1
         fi
 
         # -------------------------
@@ -306,7 +309,7 @@ install_linux_dependencies() {
         return 1
     fi
 
-    LEGO_VERSION=$(grep '^supported_lego=' ./.install | cut -d '=' -f2)
+    LEGO_VERSION=$(grep '^supported_lego=' ./.install | cut -d '=' -f2 | tr -d '\r"'\''')
 
     if [ -z "$LEGO_VERSION" ]; then
         echo "Error: lego version not defined" >&2
@@ -370,7 +373,7 @@ install_linux_dependencies() {
     rm -f "$LEGO_ARCHIVE_FILE"
 
     if command -v curl >/dev/null 2>&1; then
-        curl -L -o "$LEGO_ARCHIVE_FILE" "$LEGO_URL" || return 1
+        curl -fL -o "$LEGO_ARCHIVE_FILE" "$LEGO_URL" || return 1
     else
         wget -O "$LEGO_ARCHIVE_FILE" "$LEGO_URL" || return 1
     fi
@@ -402,13 +405,16 @@ install_linux_dependencies() {
 
         if [ "$EXPECTED" != "$ACTUAL" ]; then
             echo "Error: checksum mismatch" >&2
+            rm -f "$LEGO_ARCHIVE_FILE"
             return 1
         fi
 
         echo "Checksum verified."
 
     else
-        echo "Warning: checksum file unavailable, skipping verification."
+        echo "Error: checksum file unavailable, aborting." >&2
+        rm -f "$LEGO_ARCHIVE_FILE"
+        return 1
     fi
 
     # -------------------------
