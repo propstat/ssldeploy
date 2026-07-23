@@ -56,8 +56,10 @@ install_linux_dependencies() {
     if [ "$(id -u)" -ne 0 ]; then
         if command -v sudo >/dev/null 2>&1; then
             SUDO_CMD="sudo"
+        elif command -v doas >/dev/null 2>&1; then
+            SUDO_CMD="doas"
         else
-            echo "Error: sudo required but not installed." >&2
+            echo "Error: sudo or doas required but not installed." >&2
             return 1
         fi
     fi
@@ -295,6 +297,146 @@ install_linux_dependencies() {
     fi
 
     # -------------------------
+    # Lego ACME client
+    # -------------------------
+    echo "Installing lego ACME client..."
+
+    if [ ! -f ./.install ]; then
+        echo "Error: ./.install missing" >&2
+        return 1
+    fi
+
+    LEGO_VERSION=$(grep '^supported_lego=' ./.install | cut -d '=' -f2)
+
+    if [ -z "$LEGO_VERSION" ]; then
+        echo "Error: lego version not defined" >&2
+        return 1
+    fi
+
+    # -------------------------
+    # Determine lego artifact
+    # -------------------------
+    ARCH=$(uname -m)
+
+    case "$ARCH" in
+        x86_64|amd64)
+            ARCH="amd64"
+            ;;
+        aarch64|arm64)
+            ARCH="arm64"
+            ;;
+        *)
+            echo "Unsupported arch: $ARCH" >&2
+            return 1
+            ;;
+    esac
+
+    OS="$(uname -s)"
+
+    case "$OS" in
+        Linux)
+            LEGO_OS="linux"
+            ;;
+        Darwin)
+            LEGO_OS="darwin"
+            ;;
+        *)
+            echo "Unsupported OS: $OS" >&2
+            return 1
+            ;;
+    esac
+
+    LEGO_RELEASE_ARCHIVE_NAME="lego_v${LEGO_VERSION}_${LEGO_OS}_${ARCH}.tar.gz"
+
+    # -------------------------
+    # Download locations
+    # -------------------------
+    LEGO_DIR="../tools/lego"
+
+    LEGO_ARCHIVE_FILE="$LEGO_DIR/$LEGO_RELEASE_ARCHIVE_NAME"
+
+    LEGO_BINARY_FILE="$LEGO_DIR/lego"
+
+    LEGO_URL="https://github.com/go-acme/lego/releases/download/v${LEGO_VERSION}/${LEGO_RELEASE_ARCHIVE_NAME}"
+
+    mkdir -p "$LEGO_DIR" || return 1
+
+    # -------------------------
+    # Download archive
+    # -------------------------
+    echo "Downloading lego..."
+    echo "Version: $LEGO_VERSION"
+    echo "LEGO URL: $LEGO_URL"
+    rm -f "$LEGO_ARCHIVE_FILE"
+
+    if command -v curl >/dev/null 2>&1; then
+        curl -L -o "$LEGO_ARCHIVE_FILE" "$LEGO_URL" || return 1
+    else
+        wget -O "$LEGO_ARCHIVE_FILE" "$LEGO_URL" || return 1
+    fi
+
+    # -------------------------
+    # Verify checksum
+    # -------------------------
+    echo "Verifying checksum..."
+
+    LEGO_CHECKSUM_URL="https://github.com/go-acme/lego/releases/download/v${LEGO_VERSION}/lego_${LEGO_VERSION}_checksums.txt"
+
+    LEGO_CHECKSUM_FILE="/tmp/lego.sha256"
+
+    if curl -fsSL "$LEGO_CHECKSUM_URL" -o "$LEGO_CHECKSUM_FILE" 2>/dev/null || \
+       wget -q "$LEGO_CHECKSUM_URL" -O "$LEGO_CHECKSUM_FILE" 2>/dev/null; then
+
+        EXPECTED=$(grep " $LEGO_RELEASE_ARCHIVE_NAME$" "$LEGO_CHECKSUM_FILE" | awk '{print $1}')
+
+        if [ -z "$EXPECTED" ]; then
+            echo "Error: checksum entry not found for $LEGO_RELEASE_ARCHIVE_NAME" >&2
+            return 1
+        fi
+
+        if command -v sha256sum >/dev/null 2>&1; then
+            ACTUAL=$(sha256sum "$LEGO_ARCHIVE_FILE" | awk '{print $1}')
+        else
+            ACTUAL=$(shasum -a 256 "$LEGO_ARCHIVE_FILE" | awk '{print $1}')
+        fi
+
+        if [ "$EXPECTED" != "$ACTUAL" ]; then
+            echo "Error: checksum mismatch" >&2
+            return 1
+        fi
+
+        echo "Checksum verified."
+
+    else
+        echo "Warning: checksum file unavailable, skipping verification."
+    fi
+
+    # -------------------------
+    # Extract binary
+    # -------------------------
+    echo "Extracting lego binary..."
+
+    rm -f "$LEGO_BINARY_FILE"
+
+    tar -xzf "$LEGO_ARCHIVE_FILE" -C "$LEGO_DIR" lego || return 1
+
+    chmod +x "$LEGO_BINARY_FILE" || return 1
+
+    rm -f "$LEGO_ARCHIVE_FILE"
+
+    # -------------------------
+    # Install system-wide
+    # -------------------------
+    echo "Installing lego system-wide..."
+
+    LEGO_SYSTEM_FILE="/usr/local/bin/lego"
+
+    $SUDO_CMD install -m 0755 "$LEGO_BINARY_FILE" "$LEGO_SYSTEM_FILE" || return 1
+
+    echo "Lego installed:"
+    echo "$LEGO_SYSTEM_FILE"
+
+    # -------------------------
     # Cleanup
     # -------------------------
     echo "All dependencies installed successfully!"
@@ -314,4 +456,15 @@ install_linux_dependencies() {
     unset TAILWIND_URL
     unset TAILWIND_CHECKSUM_URL
     unset TAILWIND_CHECKSUM_FILE
+
+    unset LEGO_VERSION
+    unset LEGO_OS
+    unset LEGO_RELEASE_ARCHIVE_NAME
+    unset LEGO_DIR
+    unset LEGO_ARCHIVE_FILE
+    unset LEGO_BINARY_FILE
+    unset LEGO_SYSTEM_FILE
+    unset LEGO_URL
+    unset LEGO_CHECKSUM_URL
+    unset LEGO_CHECKSUM_FILE
 }
