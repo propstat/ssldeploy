@@ -36,11 +36,11 @@ install_linux_dependencies() {
     # -------------------------
     # Package definitions
     # -------------------------
-    DEB_PKGS="python3 python3-pip python3-venv python3-dev libffi-dev libssl-dev build-essential libc-bin sqlite3 certbot curl"
-    RHEL_PKGS="python3 python3-pip python3-devel libffi-devel openssl-devel gcc glibc-common sqlite certbot curl"
-    SUSE_PKGS="python3 python3-pip python3-devel libffi-devel libopenssl-devel gcc glibc sqlite3 certbot curl"
-    ARCH_PKGS="python python-pip libffi openssl base-devel glibc sqlite certbot curl"
-    ALPINE_PKGS="python3 py3-pip python3-dev libffi-dev openssl-dev build-base libc-utils sqlite certbot curl"
+    DEB_PKGS="python3 python3-pip python3-venv python3-dev libffi-dev libssl-dev build-essential libc-bin sqlite3 curl"
+    RHEL_PKGS="python3 python3-pip python3-devel libffi-devel openssl-devel gcc glibc-common sqlite curl"
+    SUSE_PKGS="python3 python3-pip python3-devel libffi-devel libopenssl-devel gcc glibc sqlite3 curl"
+    ARCH_PKGS="python python-pip libffi openssl base-devel glibc sqlite curl"
+    ALPINE_PKGS="python3 py3-pip python3-dev libffi-dev openssl-dev build-base libc-utils sqlite curl"
 
     DEB_PROD_PKGS="nginx ufw gunicorn"
     RHEL_PROD_PKGS="nginx firewalld python3-gunicorn"
