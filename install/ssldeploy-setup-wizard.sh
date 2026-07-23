@@ -128,6 +128,37 @@ remove() {
 
     echo "Deleting $TARGET_DIR..."
     rm -rf "$TARGET_DIR"
+    # -------------------------
+    # Remove lego binary
+    # -------------------------
+    echo "Removing lego binary..."
+
+    LEGO_SYSTEM_FILE="/usr/local/bin/lego"
+
+    if [ -f "$LEGO_SYSTEM_FILE" ]; then
+        SUDO_CMD=""
+        if [ "$(id -u)" -ne 0 ]; then
+            if command -v sudo >/dev/null 2>&1; then
+                SUDO_CMD="sudo"
+            elif command -v doas >/dev/null 2>&1; then
+                SUDO_CMD="doas"
+            else
+                echo "Warning: cannot remove $LEGO_SYSTEM_FILE (no sudo/doas)." >&2
+            fi
+        fi
+
+        if [ "$(id -u)" -eq 0 ] || [ -n "$SUDO_CMD" ]; then
+            if $SUDO_CMD rm -f "$LEGO_SYSTEM_FILE"; then
+                echo "Removed $LEGO_SYSTEM_FILE"
+            else
+                echo "Warning: failed to remove $LEGO_SYSTEM_FILE" >&2
+            fi
+        fi
+    else
+        echo "Lego binary not found, skipping."
+    fi
+
+    unset LEGO_SYSTEM_FILE SUDO_CMD
 
     echo "Removed successfully."
 }
