@@ -36,11 +36,11 @@ install_linux_dependencies() {
     # -------------------------
     # Package definitions
     # -------------------------
-    DEB_PKGS="python3 python3-pip python3-venv python3-dev libffi-dev libssl-dev build-essential libc-bin sqlite3 curl"
-    RHEL_PKGS="python3 python3-pip python3-devel libffi-devel openssl-devel gcc glibc-common sqlite curl"
-    SUSE_PKGS="python3 python3-pip python3-devel libffi-devel libopenssl-devel gcc glibc sqlite3 curl"
-    ARCH_PKGS="python python-pip libffi openssl base-devel glibc sqlite curl"
-    ALPINE_PKGS="python3 py3-pip python3-dev libffi-dev openssl-dev build-base libc-utils sqlite curl"
+    DEB_PKGS="python3 python3-pip python3-venv python3-dev libffi-dev libssl-dev build-essential libc-bin sqlite3 curl nano gawk tar ca-certificates"
+    RHEL_PKGS="python3 python3-pip python3-devel libffi-devel openssl-devel gcc glibc-common sqlite curl nano gawk tar coreutils ca-certificates"
+    SUSE_PKGS="python3 python3-pip python3-devel libffi-devel libopenssl-devel gcc glibc sqlite3 curl nano gawk tar ca-certificates"
+    ARCH_PKGS="python python-pip libffi openssl base-devel glibc sqlite curl nano ca-certificates"
+    ALPINE_PKGS="python3 py3-pip python3-dev libffi-dev openssl-dev build-base libc-utils sqlite curl nano tar ca-certificates"
 
     DEB_PROD_PKGS="nginx ufw gunicorn"
     RHEL_PROD_PKGS="nginx firewalld python3-gunicorn"

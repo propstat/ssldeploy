@@ -14,6 +14,7 @@
 . ./helpers/install_linux_dependencies.sh
 . ./helpers/license_request.sh
 . ./helpers/mode_selector.sh
+. ./helpers/host_certificate.sh
 
 # ==========================================
 # Requirement Variables
