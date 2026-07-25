@@ -36,10 +36,13 @@ install_linux_dependencies() {
     # -------------------------
     # Package definitions
     # -------------------------
-    DEB_PKGS="python3 python3-pip python3-venv python3-dev libffi-dev libssl-dev build-essential libc-bin sqlite3 curl nano gawk tar ca-certificates"
-    RHEL_PKGS="python3 python3-pip python3-devel libffi-devel openssl-devel gcc glibc-common sqlite curl nano gawk tar coreutils ca-certificates"
-    SUSE_PKGS="python3 python3-pip python3-devel libffi-devel libopenssl-devel gcc glibc sqlite3 curl nano gawk tar ca-certificates"
-    ARCH_PKGS="python python-pip libffi openssl base-devel glibc sqlite curl nano ca-certificates"
+    # cron/cronie: required for the certificate renewal job.
+    # Alpine needs no package (busybox crond is built in), but the service
+    # must be enabled: rc-update add crond && rc-service crond start
+    DEB_PKGS="python3 python3-pip python3-venv python3-dev libffi-dev libssl-dev build-essential libc-bin sqlite3 curl nano gawk tar ca-certificates cron"
+    RHEL_PKGS="python3 python3-pip python3-devel libffi-devel openssl-devel gcc glibc-common sqlite curl nano gawk tar coreutils ca-certificates cronie"
+    SUSE_PKGS="python3 python3-pip python3-devel libffi-devel libopenssl-devel gcc glibc sqlite3 curl nano gawk tar ca-certificates cron"
+    ARCH_PKGS="python python-pip libffi openssl base-devel glibc sqlite curl nano ca-certificates cronie"
     ALPINE_PKGS="python3 py3-pip python3-dev libffi-dev openssl-dev build-base libc-utils sqlite curl nano tar ca-certificates"
 
     DEB_PROD_PKGS="nginx ufw gunicorn"
@@ -136,6 +139,16 @@ install_linux_dependencies() {
                 $SUDO_CMD apt-get install -y $pkgs
                 ;;
             rhel)
+                # gunicorn (python3-gunicorn) is not in the RHEL/Rocky/Alma
+                # base repositories - it comes from EPEL. Fedora ships it in
+                # its main repos and has no epel-release package.
+                if [ "$ID" != "fedora" ]; then
+                    if ! $SUDO_CMD "$PKG_MAN" install -y epel-release; then
+                        echo "Warning: could not enable EPEL automatically." >&2
+                        echo "python3-gunicorn requires the EPEL repository on $ID." >&2
+                        echo "Enable it manually and re-run if the next step fails." >&2
+                    fi
+                fi
                 for pkg in $RHEL_PROD_PKGS; do pkgs="$pkgs $pkg"; done
                 $SUDO_CMD "$PKG_MAN" install -y $pkgs
                 ;;
@@ -300,6 +313,14 @@ install_linux_dependencies() {
     fi
 
     # -------------------------
+    # Create SQLITE DB
+    # -------------------------
+
+    echo "Creating DB file..."
+    touch ../app.db
+    echo "DB File Created."
+
+    # -------------------------
     # Lego ACME client
     # -------------------------
     echo "Installing lego ACME client..."
@@ -317,130 +338,149 @@ install_linux_dependencies() {
     fi
 
     # -------------------------
-    # Determine lego artifact
+    # Skip if the pinned version is already present
     # -------------------------
-    ARCH=$(uname -m)
-
-    case "$ARCH" in
-        x86_64|amd64)
-            ARCH="amd64"
-            ;;
-        aarch64|arm64)
-            ARCH="arm64"
-            ;;
-        *)
-            echo "Unsupported arch: $ARCH" >&2
-            return 1
-            ;;
-    esac
-
-    OS="$(uname -s)"
-
-    case "$OS" in
-        Linux)
-            LEGO_OS="linux"
-            ;;
-        Darwin)
-            LEGO_OS="darwin"
-            ;;
-        *)
-            echo "Unsupported OS: $OS" >&2
-            return 1
-            ;;
-    esac
-
-    LEGO_RELEASE_ARCHIVE_NAME="lego_v${LEGO_VERSION}_${LEGO_OS}_${ARCH}.tar.gz"
-
-    # -------------------------
-    # Download locations
-    # -------------------------
-    LEGO_DIR="../tools/lego"
-
-    LEGO_ARCHIVE_FILE="$LEGO_DIR/$LEGO_RELEASE_ARCHIVE_NAME"
-
-    LEGO_BINARY_FILE="$LEGO_DIR/lego"
-
-    LEGO_URL="https://github.com/go-acme/lego/releases/download/v${LEGO_VERSION}/${LEGO_RELEASE_ARCHIVE_NAME}"
-
-    mkdir -p "$LEGO_DIR" || return 1
-
-    # -------------------------
-    # Download archive
-    # -------------------------
-    echo "Downloading lego..."
-    echo "Version: $LEGO_VERSION"
-    echo "LEGO URL: $LEGO_URL"
-    rm -f "$LEGO_ARCHIVE_FILE"
-
-    if command -v curl >/dev/null 2>&1; then
-        curl -fL -o "$LEGO_ARCHIVE_FILE" "$LEGO_URL" || return 1
+    # Idempotent re-runs: no re-download when /usr/local/bin already holds
+    # the version pinned in .install. A pre-existing lego from a distro
+    # package (possibly v4, whose CLI is incompatible) is NOT removed - the
+    # pinned version is installed to /usr/local/bin, which precedes /usr/bin
+    # in PATH, so ssldeploy always runs the pinned release.
+    if lego --version 2>/dev/null | grep -q "version ${LEGO_VERSION}"; then
+        echo "lego ${LEGO_VERSION} already installed, skipping download."
     else
-        wget -O "$LEGO_ARCHIVE_FILE" "$LEGO_URL" || return 1
-    fi
-
-    # -------------------------
-    # Verify checksum
-    # -------------------------
-    echo "Verifying checksum..."
-
-    LEGO_CHECKSUM_URL="https://github.com/go-acme/lego/releases/download/v${LEGO_VERSION}/lego_${LEGO_VERSION}_checksums.txt"
-
-    LEGO_CHECKSUM_FILE="/tmp/lego.sha256"
-
-    if curl -fsSL "$LEGO_CHECKSUM_URL" -o "$LEGO_CHECKSUM_FILE" 2>/dev/null || \
-       wget -q "$LEGO_CHECKSUM_URL" -O "$LEGO_CHECKSUM_FILE" 2>/dev/null; then
-
-        EXPECTED=$(grep " $LEGO_RELEASE_ARCHIVE_NAME$" "$LEGO_CHECKSUM_FILE" | awk '{print $1}')
-
-        if [ -z "$EXPECTED" ]; then
-            echo "Error: checksum entry not found for $LEGO_RELEASE_ARCHIVE_NAME" >&2
-            return 1
+        EXISTING_LEGO="$(command -v lego 2>/dev/null)"
+        if [ -n "$EXISTING_LEGO" ]; then
+            echo "Found existing lego at $EXISTING_LEGO ($(lego --version 2>/dev/null))."
+            echo "Installing pinned lego ${LEGO_VERSION} to /usr/local/bin (takes PATH precedence)."
         fi
+        unset EXISTING_LEGO
 
-        if command -v sha256sum >/dev/null 2>&1; then
-            ACTUAL=$(sha256sum "$LEGO_ARCHIVE_FILE" | awk '{print $1}')
+        # -------------------------
+        # Determine lego artifact
+        # -------------------------
+        ARCH=$(uname -m)
+
+        case "$ARCH" in
+            x86_64|amd64)
+                ARCH="amd64"
+                ;;
+            aarch64|arm64)
+                ARCH="arm64"
+                ;;
+            *)
+                echo "Unsupported arch: $ARCH" >&2
+                return 1
+                ;;
+        esac
+
+        OS="$(uname -s)"
+
+        case "$OS" in
+            Linux)
+                LEGO_OS="linux"
+                ;;
+            Darwin)
+                LEGO_OS="darwin"
+                ;;
+            *)
+                echo "Unsupported OS: $OS" >&2
+                return 1
+                ;;
+        esac
+
+        LEGO_RELEASE_ARCHIVE_NAME="lego_v${LEGO_VERSION}_${LEGO_OS}_${ARCH}.tar.gz"
+
+        # -------------------------
+        # Download locations
+        # -------------------------
+        LEGO_DIR="../tools/lego"
+
+        LEGO_ARCHIVE_FILE="$LEGO_DIR/$LEGO_RELEASE_ARCHIVE_NAME"
+
+        LEGO_BINARY_FILE="$LEGO_DIR/lego"
+
+        LEGO_URL="https://github.com/go-acme/lego/releases/download/v${LEGO_VERSION}/${LEGO_RELEASE_ARCHIVE_NAME}"
+
+        mkdir -p "$LEGO_DIR" || return 1
+
+        # -------------------------
+        # Download archive
+        # -------------------------
+        echo "Downloading lego..."
+        echo "Version: $LEGO_VERSION"
+        echo "LEGO URL: $LEGO_URL"
+        rm -f "$LEGO_ARCHIVE_FILE"
+
+        if command -v curl >/dev/null 2>&1; then
+            curl -fL -o "$LEGO_ARCHIVE_FILE" "$LEGO_URL" || return 1
         else
-            ACTUAL=$(shasum -a 256 "$LEGO_ARCHIVE_FILE" | awk '{print $1}')
+            wget -O "$LEGO_ARCHIVE_FILE" "$LEGO_URL" || return 1
         fi
 
-        if [ "$EXPECTED" != "$ACTUAL" ]; then
-            echo "Error: checksum mismatch" >&2
+        # -------------------------
+        # Verify checksum
+        # -------------------------
+        echo "Verifying checksum..."
+
+        LEGO_CHECKSUM_URL="https://github.com/go-acme/lego/releases/download/v${LEGO_VERSION}/lego_${LEGO_VERSION}_checksums.txt"
+
+        LEGO_CHECKSUM_FILE="/tmp/lego.sha256"
+
+        if curl -fsSL "$LEGO_CHECKSUM_URL" -o "$LEGO_CHECKSUM_FILE" 2>/dev/null || \
+           wget -q "$LEGO_CHECKSUM_URL" -O "$LEGO_CHECKSUM_FILE" 2>/dev/null; then
+
+            EXPECTED=$(grep " $LEGO_RELEASE_ARCHIVE_NAME$" "$LEGO_CHECKSUM_FILE" | awk '{print $1}')
+
+            if [ -z "$EXPECTED" ]; then
+                echo "Error: checksum entry not found for $LEGO_RELEASE_ARCHIVE_NAME" >&2
+                return 1
+            fi
+
+            if command -v sha256sum >/dev/null 2>&1; then
+                ACTUAL=$(sha256sum "$LEGO_ARCHIVE_FILE" | awk '{print $1}')
+            else
+                ACTUAL=$(shasum -a 256 "$LEGO_ARCHIVE_FILE" | awk '{print $1}')
+            fi
+
+            if [ "$EXPECTED" != "$ACTUAL" ]; then
+                echo "Error: checksum mismatch" >&2
+                rm -f "$LEGO_ARCHIVE_FILE"
+                return 1
+            fi
+
+            echo "Checksum verified."
+
+        else
+            echo "Error: checksum file unavailable, aborting." >&2
             rm -f "$LEGO_ARCHIVE_FILE"
             return 1
         fi
 
-        echo "Checksum verified."
+        # -------------------------
+        # Extract binary
+        # -------------------------
+        echo "Extracting lego binary..."
 
-    else
-        echo "Error: checksum file unavailable, aborting." >&2
+        rm -f "$LEGO_BINARY_FILE"
+
+        tar -xzf "$LEGO_ARCHIVE_FILE" -C "$LEGO_DIR" lego || return 1
+
+        chmod +x "$LEGO_BINARY_FILE" || return 1
+
         rm -f "$LEGO_ARCHIVE_FILE"
-        return 1
+
+        # -------------------------
+        # Install system-wide
+        # -------------------------
+        echo "Installing lego system-wide..."
+
+        LEGO_SYSTEM_FILE="/usr/local/bin/lego"
+
+        $SUDO_CMD install -m 0755 "$LEGO_BINARY_FILE" "$LEGO_SYSTEM_FILE" || return 1
+
+        echo "Lego installed:"
+        echo "$LEGO_SYSTEM_FILE"
     fi
-
-    # -------------------------
-    # Extract binary
-    # -------------------------
-    echo "Extracting lego binary..."
-
-    rm -f "$LEGO_BINARY_FILE"
-
-    tar -xzf "$LEGO_ARCHIVE_FILE" -C "$LEGO_DIR" lego || return 1
-
-    chmod +x "$LEGO_BINARY_FILE" || return 1
-
-    rm -f "$LEGO_ARCHIVE_FILE"
-
-    # -------------------------
-    # Install system-wide
-    # -------------------------
-    echo "Installing lego system-wide..."
-
-    LEGO_SYSTEM_FILE="/usr/local/bin/lego"
-
-    $SUDO_CMD install -m 0755 "$LEGO_BINARY_FILE" "$LEGO_SYSTEM_FILE" || return 1
-
-    echo "Lego installed:"
-    echo "$LEGO_SYSTEM_FILE"
 
     # -------------------------
     # Cleanup
