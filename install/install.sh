@@ -244,9 +244,9 @@ Requirements:
 EOF
 
 confirm_continue -y \
-    -startmsg="Do you want to enable Development Mode?" \
-    -endmsg="Your selection has been written to the .env file." \
-    on_no="collect_dns_credentials" \
+    -startmsg="Do you want to proceed with setting up the credentials for this host certificate?" \
+    -endmsg="Your credentials have been saved." \
+    on_no="You have not accepted the privacy agreement, the installation is cancelled.'; exit 1" \
     on_yes="collect_dns_credentials"
 
 # ==========================================
