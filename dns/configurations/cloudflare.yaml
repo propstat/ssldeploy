@@ -9,40 +9,40 @@ dns_credentialSet:
     dns_credentialSet_description: "Authenticate via a Cloudflare API Token."
     dns_credentialSet_documentationURL: "https://developers.cloudflare.com/fundamentals/api/get-started/create-token/"
     dns_credentialSet_components:
-      - dns_credentialSet_component_name: "CLOUDFLARE_DNS_API_TOKEN"
+      - dns_credentialSet_component_argumentName: "CLOUDFLARE_DNS_API_TOKEN"
         dns_credentialSet_component_friendlyName: "Cloudflare API Token"
         dns_credentialSet_component_description: "Your Cloudflare API Token, needs Zone:Read and DNS:Edit"
-        dns_credentialSet_component_type: string
+        dns_credentialSet_component_type: "string"
         dns_credentialSet_component_secret: true
         dns_credentialSet_component_required: true
-      - dns_credentialSet_component_name: "CLOUDFLARE_BASE_URL"
+      - dns_credentialSet_component_argumentName: "CLOUDFLARE_BASE_URL"
         dns_credentialSet_component_friendlyName: "Cloudflare API Base URL"
         dns_credentialSet_component_description: "API base URL (Default: https://api.cloudflare.com/client/v4)"
-        dns_credentialSet_component_type: url
+        dns_credentialSet_component_type: "url"
         dns_credentialSet_component_secret: false
         dns_credentialSet_component_required: false
-      - dns_credentialSet_component_name: "CLOUDFLARE_HTTP_TIMEOUT"
+      - dns_credentialSet_component_argumentName: "CLOUDFLARE_HTTP_TIMEOUT"
         dns_credentialSet_component_friendlyName: "Cloudflare API Timeout"
         dns_credentialSet_component_description: "API request timeout in seconds"
-        dns_credentialSet_component_type: integer
+        dns_credentialSet_component_type: "integer"
         dns_credentialSet_component_secret: false
         dns_credentialSet_component_required: false
-      - dns_credentialSet_component_name: "CLOUDFLARE_POLLING_INTERVAL"
-        dns_credentialSet_component_friendlyName: "Cloudflare API Timeout"
+      - dns_credentialSet_component_argumentName: "CLOUDFLARE_POLLING_INTERVAL"
+        dns_credentialSet_component_friendlyName: "Cloudflare DNS Propagation Check"
         dns_credentialSet_component_description: "Time between DNS propagation check in seconds (Default: 2)."
-        dns_credentialSet_component_type: integer
+        dns_credentialSet_component_type: "integer"
         dns_credentialSet_component_secret: false
         dns_credentialSet_component_required: false
-      - dns_credentialSet_component_name: "CLOUDFLARE_PROPAGATION_TIMEOUT"
-        dns_credentialSet_component_friendlyName: "Cloudflare API Timeout"
+      - dns_credentialSet_component_argumentName: "CLOUDFLARE_PROPAGATION_TIMEOUT"
+        dns_credentialSet_component_friendlyName: "Cloudflare Propagation Time-Out"
         dns_credentialSet_component_description: "Maximum waiting time for DNS propagation in seconds (Default: 120)."
-        dns_credentialSet_component_type: integer
+        dns_credentialSet_component_type: "integer"
         dns_credentialSet_component_secret: false
         dns_credentialSet_component_required: false
-      - dns_credentialSet_component_name: "CLOUDFLARE_TTL"
-        dns_credentialSet_component_friendlyName: "Cloudflare API Timeout"
+      - dns_credentialSet_component_argumentName: "CLOUDFLARE_TTL"
+        dns_credentialSet_component_friendlyName: "Cloudflare TXT Record Lifetime"
         dns_credentialSet_component_description: "The TTL of the TXT record used for the DNS challenge in seconds (Default: 120)."
-        dns_credentialSet_component_type: integer
+        dns_credentialSet_component_type: "integer"
         dns_credentialSet_component_secret: false
         dns_credentialSet_component_required: false
   - dns_credentialSet_name: "dualapitoken"
@@ -50,45 +50,45 @@ dns_credentialSet:
     dns_credentialSet_description: "Separates DNS Edit and Zone Read on two tokens."
     dns_credentialSet_documentationURL: "https://developers.cloudflare.com/fundamentals/api/get-started/create-token/"
     dns_credentialSet_components:
-      - dns_credentialSet_component_name: "CLOUDFLARE_DNS_API_TOKEN"
+      - dns_credentialSet_component_argumentName: "CLOUDFLARE_DNS_API_TOKEN"
         dns_credentialSet_component_friendlyName: "Cloudflare API Token"
         dns_credentialSet_component_description: "Your Cloudflare API Token needs DNS:Edit"
-        dns_credentialSet_component_type: string
+        dns_credentialSet_component_type: "string"
         dns_credentialSet_component_secret: true
         dns_credentialSet_component_required: true
-      - dns_credentialSet_component_name: "CF_ZONE_API_TOKEN"
+      - dns_credentialSet_component_argumentName: "CF_ZONE_API_TOKEN"
         dns_credentialSet_component_friendlyName: "Cloudflare Zone API Token"
         dns_credentialSet_component_description: "Your Cloudflare Zone API Token needs Zone:Read"
-        dns_credentialSet_component_type: string
+        dns_credentialSet_component_type: "string"
         dns_credentialSet_component_secret: true
         dns_credentialSet_component_required: true
-      - dns_credentialSet_component_name: "CLOUDFLARE_BASE_URL"
+      - dns_credentialSet_component_argumentName: "CLOUDFLARE_BASE_URL"
         dns_credentialSet_component_friendlyName: "Cloudflare API Base URL"
         dns_credentialSet_component_description: "API base URL (Default: https://api.cloudflare.com/client/v4)"
-        dns_credentialSet_component_type: url
+        dns_credentialSet_component_type: "url"
         dns_credentialSet_component_secret: false
         dns_credentialSet_component_required: false
-      - dns_credentialSet_component_name: "CLOUDFLARE_HTTP_TIMEOUT"
+      - dns_credentialSet_component_argumentName: "CLOUDFLARE_HTTP_TIMEOUT"
         dns_credentialSet_component_friendlyName: "Cloudflare API Timeout"
         dns_credentialSet_component_description: "API request timeout in seconds"
-        dns_credentialSet_component_type: integer
+        dns_credentialSet_component_type: "integer"
         dns_credentialSet_component_secret: false
         dns_credentialSet_component_required: false
-      - dns_credentialSet_component_name: "CLOUDFLARE_POLLING_INTERVAL"
-        dns_credentialSet_component_friendlyName: "Cloudflare API Timeout"
+      - dns_credentialSet_component_argumentName: "CLOUDFLARE_POLLING_INTERVAL"
+        dns_credentialSet_component_friendlyName: "Cloudflare DNS Propagation Check"
         dns_credentialSet_component_description: "Time between DNS propagation check in seconds (Default: 2)."
-        dns_credentialSet_component_type: integer
+        dns_credentialSet_component_type: "integer"
         dns_credentialSet_component_secret: false
         dns_credentialSet_component_required: false
-      - dns_credentialSet_component_name: "CLOUDFLARE_PROPAGATION_TIMEOUT"
-        dns_credentialSet_component_friendlyName: "Cloudflare API Timeout"
+      - dns_credentialSet_component_argumentName: "CLOUDFLARE_PROPAGATION_TIMEOUT"
+        dns_credentialSet_component_friendlyName: "Cloudflare Propagation Time-Out"
         dns_credentialSet_component_description: "Maximum waiting time for DNS propagation in seconds (Default: 120)."
-        dns_credentialSet_component_type: integer
+        dns_credentialSet_component_type: "integer"
         dns_credentialSet_component_secret: false
         dns_credentialSet_component_required: false
-      - dns_credentialSet_component_name: "CLOUDFLARE_TTL"
-        dns_credentialSet_component_friendlyName: "Cloudflare API Timeout"
+      - dns_credentialSet_component_argumentName: "CLOUDFLARE_TTL"
+        dns_credentialSet_component_friendlyName: "Cloudflare TXT Record Lifetime"
         dns_credentialSet_component_description: "The TTL of the TXT record used for the DNS challenge in seconds (Default: 120)."
-        dns_credentialSet_component_type: integer
+        dns_credentialSet_component_type: "integer"
         dns_credentialSet_component_secret: false
         dns_credentialSet_component_required: false

@@ -150,7 +150,7 @@ collect_dns_credentials() {
             s++
             if (s > SET) { flushcomp(); exit }
         }
-        s == SET && /dns_credentialSet_component_argumentName:/ {
+        s == SET && (/dns_credentialSet_component_argumentName:/ || /dns_credentialSet_component_name:/) {
             flushcomp()
             arg = val($0); cfriendly = ""; cdesc = ""; ctype = "string"
             csecret = "false"; crequired = "false"; pick = ""
@@ -174,6 +174,14 @@ collect_dns_credentials() {
             }
         }
     ' "$yaml_file" > "$tmp_comp"
+
+    if [ ! -s "$tmp_comp" ]; then
+        printf 'ERROR: no components could be parsed for this credential set.\n' >&2
+        printf 'Check %s for schema errors (expected key: dns_credentialSet_component_argumentName).\n' "$yaml_file" >&2
+        exec 3<&- 2>/dev/null
+        rm -f "$tmp_prov" "$tmp_sets" "$tmp_comp"; trap - INT TERM
+        return 1
+    fi
 
     # ======================================================================= #
     # 5. Collect the input for every component                                #
