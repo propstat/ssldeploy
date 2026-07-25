@@ -40,8 +40,8 @@ license for commercial use.
 License: https://github.com/propstat/ssldeploy
 =========================================================
 ${RED}YOU ARE DOWNLOADING MATERIAL COVERED BY COPYRIGHT AND${NC}
-${RED}LICENSED UNDER THE PROPSTAT LICENSE. DO NOT CONTINUE IF${NC}
-${RED}YOU DO NOT AGREE TO THE LICENSE TERMS.${NC}
+${RED}LICENSED UNDER THE PROPSTAT LICENSE. IF YOU CONTINUE${NC}
+${RED}YOU AGREE TO THE LICENSE TERMS.${NC}
 =========================================================
 EOF
 
