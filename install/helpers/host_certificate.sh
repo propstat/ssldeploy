@@ -423,6 +423,25 @@ _hdc_env_set() {
 }
 
 # --------------------------------------------------------------------------- #
+# internal: prompt until a valid FQDN is entered; sets host_fqdn              #
+# --------------------------------------------------------------------------- #
+_hdc_read_fqdn() {
+    while :; do
+        printf 'Enter the fully qualified domain name of this host: '
+        read -r answer < /dev/tty
+        case "$answer" in
+            *.*)
+                case "$answer" in
+                    *[!a-zA-Z0-9.-]*|-*|*-|.*|*.) printf 'Invalid domain name.\n' ;;
+                    *) host_fqdn="$answer"; return 0 ;;
+                esac
+                ;;
+            *)  printf 'Please enter a fully qualified domain name (host.example.com).\n' ;;
+        esac
+    done
+}
+
+# --------------------------------------------------------------------------- #
 # main                                                                        #
 # --------------------------------------------------------------------------- #
 host_dns_certificate() {
@@ -489,20 +508,7 @@ host_dns_certificate() {
                 ''|y|Y|yes|YES) break ;;
             esac
         fi
-        # manual entry: loop here until a valid FQDN is given, then accept it
-        while :; do
-            printf 'Enter the fully qualified domain name of this host: '
-            read -r answer < /dev/tty
-            case "$answer" in
-                *.*)
-                    case "$answer" in
-                        *[!a-zA-Z0-9.-]*|-*|*-|.*|*.) printf 'Invalid domain name.\n' ;;
-                        *) host_fqdn="$answer"; break ;;
-                    esac
-                    ;;
-                *)  printf 'Please enter a fully qualified domain name (host.example.com).\n' ;;
-            esac
-        done
+        _hdc_read_fqdn
         break
     done
 
@@ -553,22 +559,35 @@ host_dns_certificate() {
         fi
 
         printf '\nStaging test FAILED (lego exit code %d).\n' "$lego_rc" >&2
-        printf 'This usually means the DNS credentials are wrong or lack permissions.\n' >&2
-        printf 'Do you want to re-enter your DNS credentials and try again? [Y/n]: '
-        read -r answer < /dev/tty
-        case "$answer" in
-            n|N|no|NO)
-                printf 'Aborting host certificate setup.\n' >&2
-                return "$lego_rc"
-                ;;
-        esac
-
-        if command -v collect_dns_credentials >/dev/null 2>&1; then
-            collect_dns_credentials || return 1
-        else
-            printf 'ERROR: collect_dns_credentials is not available in this shell.\n' >&2
-            return 1
-        fi
+        printf 'Common causes: wrong or under-privileged DNS credentials, or the\n' >&2
+        printf 'domain does not belong to a zone the credentials can access.\n\n' >&2
+        printf '  1) Re-enter the DNS credentials\n'
+        printf '  2) Change the server name (currently: %s)\n' "$host_fqdn"
+        printf '  3) Abort the host certificate setup\n\n'
+        while :; do
+            printf 'Select an option [1-3]: '
+            read -r answer < /dev/tty
+            case "$answer" in
+                1)
+                    if command -v collect_dns_credentials >/dev/null 2>&1; then
+                        collect_dns_credentials || return 1
+                    else
+                        printf 'ERROR: collect_dns_credentials is not available in this shell.\n' >&2
+                        return 1
+                    fi
+                    break
+                    ;;
+                2)
+                    _hdc_read_fqdn
+                    break
+                    ;;
+                3)
+                    printf 'Aborting host certificate setup.\n' >&2
+                    return "$lego_rc"
+                    ;;
+                *) printf 'Invalid selection.\n' ;;
+            esac
+        done
     done
 
     # ======================================================================= #
