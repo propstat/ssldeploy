@@ -451,7 +451,35 @@ host_dns_certificate() {
     # ======================================================================= #
     # 1. Confirm (or change) the FQDN of this host                            #
     # ======================================================================= #
-    host_fqdn="$(hostname -f 2>/dev/null || hostname 2>/dev/null)"
+    # detect a *fully qualified* default: 'hostname -f' often returns only the
+    # short hostname unless the resolver/hosts file is configured for FQDNs.
+    # Fall back to assembling hostname + DNS domain; if the result is not a
+    # valid FQDN (no dot / bad characters), offer no default and ask directly.
+    host_fqdn="$(hostname -f 2>/dev/null)"
+    case "$host_fqdn" in
+        *.*) : ;;
+        *)
+            _h="$(hostname 2>/dev/null)"
+            _d="$(hostname -d 2>/dev/null)"
+            [ -z "$_d" ] && _d="$(dnsdomainname 2>/dev/null)"
+            if [ -n "$_h" ] && [ -n "$_d" ]; then
+                host_fqdn="${_h}.${_d}"
+            else
+                host_fqdn=""
+            fi
+            unset _h _d
+            ;;
+    esac
+    # the default must pass the same validation as manual input
+    case "$host_fqdn" in
+        *.*)
+            case "$host_fqdn" in
+                *[!a-zA-Z0-9.-]*|-*|*-|.*|*.) host_fqdn="" ;;
+            esac
+            ;;
+        *) host_fqdn="" ;;
+    esac
+
     while :; do
         if [ -n "$host_fqdn" ]; then
             printf '\nThe certificate will be requested for: %s\n' "$host_fqdn"
@@ -503,14 +531,18 @@ host_dns_certificate() {
         printf '\nTesting your DNS credentials against the Let'\''s Encrypt STAGING servers...\n'
         printf 'Provider: %s - Domain: %s\n\n' "$hdc_dns_provider" "$host_fqdn"
 
-        "$LEGO_BIN" \
+        # lego v5: all flags belong to the 'run' subcommand; --renew-force
+        # guarantees a real DNS-01 challenge even if a previous staging
+        # certificate still exists (otherwise 'run' would silently skip).
+        "$LEGO_BIN" run \
             --accept-tos \
             --path "$STORAGE_PATH" \
             --email "$acme_email" \
             --dns "$hdc_dns_provider" \
             --domains "$host_fqdn" \
             --server "$STAGING_URL" \
-            run --always-deactivate-authorizations
+            --always-deactivate-authorizations \
+            --renew-force
         lego_rc=$?
 
         _hdc_unset_creds
@@ -555,13 +587,16 @@ host_dns_certificate() {
             2)
                 _hdc_export_creds || return 1
                 printf '\nRequesting a PRODUCTION certificate for %s...\n\n' "$host_fqdn"
-                "$LEGO_BIN" \
+                # --renew-force: the staging certificate just issued is fresh,
+                # without it 'run' would consider the cert not due and skip.
+                "$LEGO_BIN" run \
                     --accept-tos \
                     --path "$STORAGE_PATH" \
                     --email "$acme_email" \
                     --dns "$hdc_dns_provider" \
                     --domains "$host_fqdn" \
-                    run --always-deactivate-authorizations
+                    --always-deactivate-authorizations \
+                    --renew-force
                 lego_rc=$?
                 _hdc_unset_creds
                 if [ "$lego_rc" -ne 0 ]; then
@@ -644,14 +679,17 @@ else
     set -- --server "$STAGING_URL"
 fi
 
-"$LEGO_BIN" \
+# lego v5: 'run' issues or renews; ARI decides when a renewal is due,
+# --renew-days 30 is the fallback threshold if ARI is unavailable.
+"$LEGO_BIN" run \
     --accept-tos \
     --path "$STORAGE_PATH" \
     --email "$ACME_EMAIL" \
     --dns "$DNS_PROVIDER" \
     --domains "$HOST_FQDN" \
     "$@" \
-    renew --days 30 --always-deactivate-authorizations
+    --always-deactivate-authorizations \
+    --renew-days 30
 rc=$?
 
 # keep the stable filenames pointing at the (possibly renewed) certificate
