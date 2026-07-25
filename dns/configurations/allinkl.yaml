@@ -1,0 +1,23 @@
+%YAML 1.2
+---
+dns_name: "allinkl"
+dns_friendlyName: "ALL-INKL.COM - Neue Medien Münnich"
+dns_documentationURL: "https://documentation.example.com"
+dns_credentialSet:
+  - dns_credentialSet_name: "kasCredentials"
+    dns_credentialSet_friendlyName: "KAS Credentials"
+    dns_credentialSet_description: "Authenticate via the KAS Credentials"
+    dns_credentialSet_documentationURL: "https://documentation.example.com/howtogetatoken"
+    dns_credentialSet_components:
+      - dns_credentialSet_component_argumentName: "ALL_INKL_LOGIN"
+        dns_credentialSet_component_friendlyName: "Example DNS API Token"
+        dns_credentialSet_component_description: "Your Example DNS API Token"
+        dns_credentialSet_component_type: "string"
+        dns_credentialSet_component_secret: false
+        dns_credentialSet_component_required: true
+      - dns_credentialSet_component_argumentName: "ALL_INKL_PASSWORD"
+        dns_credentialSet_component_friendlyName: "KAS password"
+        dns_credentialSet_component_description: "Your All-Inkl KAS Password"
+        dns_credentialSet_component_type: "string"
+        dns_credentialSet_component_secret: true
+        dns_credentialSet_component_required: true

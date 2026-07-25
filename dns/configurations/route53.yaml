@@ -1,0 +1,29 @@
+%YAML 1.2
+---
+dns_name: "route53"
+dns_friendlyName: "Amazon AWS Route53"
+dns_documentationURL: "https://docs.aws.amazon.com/Route53/latest/APIReference/API_Operations_Amazon_Route_53.html"
+dns_credentialSet:
+  - dns_credentialSet_name: "route53IDKey"
+    dns_credentialSet_friendlyName: "AWS Route 53 Key ID & Secret"
+    dns_credentialSet_description: "Authenticate with Key ID and Secret, supports special goverment, DoD and German regions."
+    dns_credentialSet_documentationURL: "https://ssldeploy.propstat.org/dnsproviders/amazonroute53/"
+    dns_credentialSet_components:
+      - dns_credentialSet_component_argumentName: "AWS_ACCESS_KEY_ID"
+        dns_credentialSet_component_friendlyName: "AWS Access Key ID"
+        dns_credentialSet_component_description: "The Identifier of your Key ID and Secret pair"
+        dns_credentialSet_component_type: "string"
+        dns_credentialSet_component_secret: false
+        dns_credentialSet_component_required: true
+      - dns_credentialSet_component_argumentName: "AWS_SECRET_ACCESS_KEY"
+        dns_credentialSet_component_friendlyName: "AWS Access Key Secret"
+        dns_credentialSet_component_description: "The API Secret."
+        dns_credentialSet_component_type: "string"
+        dns_credentialSet_component_secret: true
+        dns_credentialSet_component_required: true
+      - dns_credentialSet_component_argumentName: "AWS_REGION"
+        dns_credentialSet_component_friendlyName: "AWS Route53 Region"
+        dns_credentialSet_component_description: "Only needed for special government partitions, Route53 does resolve commercial regions automatically." # Some additional description."
+        dns_credentialSet_component_type: "string"
+        dns_credentialSet_component_secret: false
+        dns_credentialSet_component_required: false

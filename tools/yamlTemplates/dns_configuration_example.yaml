@@ -1,0 +1,40 @@
+%YAML 1.2
+---
+# REMOVE COMMENTS BEFORE COMMIT.
+# Generally any provider from https://go-acme.github.io/lego/dns/ can be supported. 
+# "dns_credentialSet_component_argumentName" must be identical to the Environment Variable Names in the LEGO documentation.
+# Examples:
+# Example with Picklist: Azure DNS
+# Example with a simple Token: Cloudflare
+dns_name: "exampleDNS" # The string identifier of the DNS provider.
+dns_friendlyName: "Example DNS Provider" # A more meaningful name for the provider for end users e.g. Amazon AWS Route53 instead of route53.
+dns_documentationURL: "https://documentation.example.com" # Link to the developer documentation of the service provider.
+dns_credentialSet:
+  - dns_credentialSet_name: "exampleApiToken" # The string identifier of the credential set.
+    dns_credentialSet_friendlyName: "Example API Token" # A more meaningful name for the credential set for end users.
+    dns_credentialSet_description: "Authenticate via an Example DNS API Token" # A more meaningful description for the credential set for end users, include limitations or special information for this credential set.
+    dns_credentialSet_documentationURL: "https://documentation.example.com/howtogetatoken" # The specific URL that describes how to get the credentials.
+    dns_credentialSet_components:
+      - dns_credentialSet_component_argumentName: "EXAMPLE_DNS_API_TOKEN" # The LEGO Argument Name
+        dns_credentialSet_component_friendlyName: "Example DNS API Token" # How the provider calls it.
+        dns_credentialSet_component_description: "Your Example DNS API Token" # Some additional description."
+        dns_credentialSet_component_type: "string" # Any of string, email, url.
+        dns_credentialSet_component_secret: true # If this component is a secret or can be exposed to frontend (default = false).
+        dns_credentialSet_component_required: true # If this component is required or optional (default = false)
+      - dns_credentialSet_component_argumentName: "EXAMPLEDNS_REGION" # The LEGO Argument Name
+        dns_credentialSet_component_friendlyName: "Example DNS Configuration Region Picklist" # How the provider calls it.
+        dns_credentialSet_component_description: "Choose your Region." # Some additional description."
+        dns_credentialSet_component_type: "picklist" # Any of string, email, url.
+        dns_credentialSet_component_secret: false # If this component is a secret or can be exposed to frontend (default = false).
+        dns_credentialSet_component_required: true # If this component is required or optional (default = false)
+        dns_credentialSet_component_picklistValues: # For an array of options, requires type to be "picklist".  
+            # Defines abstract options exposed to the user.
+            # "dns_credentialSet_component_picklistValue_value" needs to match LEGO expectations.
+          - dns_credentialSet_component_picklistValue_name: "region_northamerica" # Arbitrary Example
+            dns_credentialSet_component_picklistValue_friendlyName: "North America (USA and Canada)" # Arbitrary Example
+            dns_credentialSet_component_picklistValue_description: "Choose if your instance is located in the U.S. or Canada" # Arbitrary Example
+            dns_credentialSet_component_picklistValue_value: "north_america" # Arbitrary Example
+          - dns_credentialSet_component_picklistValue_name: "region_asia" # Arbitrary Example 
+            dns_credentialSet_component_picklistValue_friendlyName: "Asia" # Arbitrary Example
+            dns_credentialSet_component_picklistValue_description: "Choose if your instance is located in Asia" # Arbitrary Example
+            dns_credentialSet_component_picklistValue_value: "asia" # Arbitrary Example

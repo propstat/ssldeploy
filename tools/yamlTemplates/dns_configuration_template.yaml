@@ -1,0 +1,37 @@
+%YAML 1.2
+---
+# REMOVE COMMENTS BEFORE COMMIT.
+# Generally any provider from https://go-acme.github.io/lego/dns/ can be supported. 
+# "dns_credentialSet_component_argumentName" must be identical to the Environment Variable Names in the LEGO documentation.
+# Examples:
+# Example with Picklist: Azure DNS
+# Example with a simple Token: Cloudflare
+dns_friendlyName: "" # A more meaningful name for the provider for end users e.g. Amazon AWS Route53 instead of route53.
+dns_documentationURL: "" # Link to the developer documentation of the service provider.
+dns_credentialSet:
+  - dns_credentialSet_name: "" # The string identifier of the credential set.
+    dns_credentialSet_friendlyName: "" # A more meaningful name for the credential set for end users.
+    dns_credentialSet_description: "" # A more meaningful description for the credential set for end users, include limitations or special information for this credential set.
+    dns_credentialSet_documentationURL: "" # The specific URL that describes how to get the credentials.
+    dns_credentialSet_components:
+    # Any of string, email, url, picklist work exactly in the same way as quotation mark encapsulated values.
+      - dns_credentialSet_component_argumentName: "" # The LEGO Argument Name
+        dns_credentialSet_component_friendlyName: "" # How the provider calls it.
+        dns_credentialSet_component_description: "" # Some additional description.
+        dns_credentialSet_component_type: "" # Any of string, email, url, picklist, integer or certificate (certificates require you to have the certificate available for immediate upload).
+        dns_credentialSet_component_secret: true # # (OPTIONAL) If this component is a secret or can be exposed to frontend (default = false).
+        dns_credentialSet_component_required: true # (OPTIONAL) If this component is required or optional (default = false)
+      # If the quantiy of possible values is below 5 and doesn't change, feel free to use a picklist.
+      - dns_credentialSet_component_argumentName: ""
+        dns_credentialSet_component_friendlyName: "" # How the provider calls it.
+        dns_credentialSet_component_description: "" # Some additional description."
+        dns_credentialSet_component_type: "" # If this is a picklist, only "picklist" is a correct value.
+        dns_credentialSet_component_secret: "" # (OPTIONAL) If this component is a secret or can be exposed to frontend (default = false).
+        dns_credentialSet_component_required: "" # (OPTIONAL) If this component is required or optional (default = false)
+        dns_credentialSet_component_picklistValues: # For an array of options, requires type to be  
+          # Defines abstract options exposed to the user.
+          # "dns_credentialSet_component_picklistValue_value" needs to match LEGO expectations.
+          - dns_credentialSet_component_picklistValue_name: "" 
+            dns_credentialSet_component_picklistValue_friendlyName: ""
+            dns_credentialSet_component_picklistValue_description: ""
+            dns_credentialSet_component_picklistValue_value: ""

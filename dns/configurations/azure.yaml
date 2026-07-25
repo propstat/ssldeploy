@@ -1,0 +1,174 @@
+%YAML 1.2
+---
+dns_name: "azuredns"
+dns_friendlyName: "Microsoft Azure DNS"
+dns_documentationURL: "https://learn.microsoft.com/en-us/azure/dns/"
+dns_credentialSet:
+  - dns_credentialSet_name: "clientSecret"
+    dns_credentialSet_friendlyName: "Client Secret Authentication"
+    dns_credentialSet_description: "Validate DNS using Client ID, Tenant ID and Secret"
+    dns_credentialSet_documentationURL: "https://documentation.example.com/howtogetatoken"
+    dns_credentialSet_components:
+      - dns_credentialSet_component_argumentName: "AZURE_CLIENT_ID"
+        dns_credentialSet_component_friendlyName: "Azure Client ID"
+        dns_credentialSet_component_description: "Your Azure Client ID"
+        dns_credentialSet_component_type: "string"
+        dns_credentialSet_component_secret: false
+        dns_credentialSet_component_required: true
+      - dns_credentialSet_component_argumentName: "AZURE_TENANT_ID"
+        dns_credentialSet_component_friendlyName: "Azure Tenant ID"
+        dns_credentialSet_component_description: "Your Azure Tenant ID"
+        dns_credentialSet_component_type: "string"
+        dns_credentialSet_component_secret: false
+        dns_credentialSet_component_required: true
+      - dns_credentialSet_component_argumentName: "AZURE_CLIENT_SECRET"
+        dns_credentialSet_component_friendlyName: "Azure Client Secret"
+        dns_credentialSet_component_description: "Your Azure Client Secret"
+        dns_credentialSet_component_type: "string"
+        dns_credentialSet_component_secret: true
+        dns_credentialSet_component_required: true
+      - dns_credentialSet_component_argumentName: "AZURE_ENVIRONMENT"
+        dns_credentialSet_component_friendlyName: "Azure Environment"
+        dns_credentialSet_component_description: "Choose if Public, Government or China Cloud."
+        dns_credentialSet_component_type: "picklist"
+        dns_credentialSet_component_secret: false
+        dns_credentialSet_component_required: false
+        dns_credentialSet_component_picklistValues:
+          - dns_credentialSet_component_picklistValue_name: "azure_environment_commercial"
+            dns_credentialSet_component_picklistValue_friendlyName: "Default Azure Environment"
+            dns_credentialSet_component_picklistValue_description: "Choose for regular commercial systems"
+            dns_credentialSet_component_picklistValue_value: "public"
+          - dns_credentialSet_component_picklistValue_name: "azure_environment_usgovernment"
+            dns_credentialSet_component_picklistValue_friendlyName: "Azure for U.S. Government"
+            dns_credentialSet_component_picklistValue_description: "Choose if you are a U.S. Government Customer"
+            dns_credentialSet_component_picklistValue_value: "usgovernment"
+          - dns_credentialSet_component_picklistValue_name: "azure_environment_china"
+            dns_credentialSet_component_picklistValue_friendlyName: "Azure China"
+            dns_credentialSet_component_picklistValue_description: "Choose if you your Region is China"
+            dns_credentialSet_component_picklistValue_value: "china"
+      - dns_credentialSet_component_argumentName: "AZURE_POLLING_INTERVAL"
+        dns_credentialSet_component_friendlyName: "DNS Propagation Check"
+        dns_credentialSet_component_description: "Time between DNS propagation check in seconds (Default: 2)"
+        dns_credentialSet_component_type: "integer"
+        dns_credentialSet_component_secret: false
+        dns_credentialSet_component_required: false
+      - dns_credentialSet_component_argumentName: "AZURE_PRIVATE_ZONE"
+        dns_credentialSet_component_friendlyName: "Azure Private Zone"
+        dns_credentialSet_component_description: "Set to true to use Azure Private DNS Zones and not public"
+        dns_credentialSet_component_type: "boolean"
+        dns_credentialSet_component_secret: false
+        dns_credentialSet_component_required: false
+      - dns_credentialSet_component_argumentName: "AZURE_PROPAGATION_TIMEOUT"
+        dns_credentialSet_component_friendlyName: "Azure Propagation Time-Out"
+        dns_credentialSet_component_description: "Maximum waiting time for DNS propagation in seconds (Default: 120)."
+        dns_credentialSet_component_type: "integer"
+        dns_credentialSet_component_secret: false
+        dns_credentialSet_component_required: false
+      - dns_credentialSet_component_argumentName: "AZURE_RESOURCE_GROUP"
+        dns_credentialSet_component_friendlyName: "Azure Resource Group"
+        dns_credentialSet_component_description: "Your Azure Resource Group"
+        dns_credentialSet_component_type: "string"
+        dns_credentialSet_component_secret: false
+        dns_credentialSet_component_required: false
+      - dns_credentialSet_component_argumentName: "AZURE_SUBSCRIPTION_ID"
+        dns_credentialSet_component_friendlyName: "Azure DNS zone subscription ID"
+        dns_credentialSet_component_description: "Your Azure DNS zone subscription ID"
+        dns_credentialSet_component_type: "string"
+        dns_credentialSet_component_secret: false
+        dns_credentialSet_component_required: false
+      - dns_credentialSet_component_argumentName: "AZURE_TTL"
+        dns_credentialSet_component_friendlyName: "Azure TXT Record Lifetime"
+        dns_credentialSet_component_description: "The TTL of the TXT record used for the DNS challenge in seconds (Default: 60)." # Some additional description."
+        dns_credentialSet_component_type: "integer"
+        dns_credentialSet_component_secret: false
+        dns_credentialSet_component_required: false
+      - dns_credentialSet_component_argumentName: "AZURE_ZONE_NAME"
+        dns_credentialSet_component_friendlyName: "Azure DNS zone Name"
+        dns_credentialSet_component_description: "Your Azure DNS zone Name"
+        dns_credentialSet_component_type: "string"
+        dns_credentialSet_component_secret: false
+        dns_credentialSet_component_required: false
+  - dns_credentialSet_name: "clientCertificate"
+    dns_credentialSet_friendlyName: "Client Secret Authentication"
+    dns_credentialSet_description: "Validate DNS using a client certificate"
+    dns_credentialSet_documentationURL: "https://documentation.example.com/howtogetatoken"
+    dns_credentialSet_components:
+      - dns_credentialSet_component_argumentName: "AZURE_CLIENT_ID"
+        dns_credentialSet_component_friendlyName: "Azure Client ID"
+        dns_credentialSet_component_description: "Your Azure Client ID"
+        dns_credentialSet_component_type: "string"
+        dns_credentialSet_component_secret: false
+        dns_credentialSet_component_required: true
+      - dns_credentialSet_component_argumentName: "AZURE_TENANT_ID"
+        dns_credentialSet_component_friendlyName: "Azure Tenant ID"
+        dns_credentialSet_component_description: "Your Azure Tenant ID"
+        dns_credentialSet_component_type: "string"
+        dns_credentialSet_component_secret: false
+        dns_credentialSet_component_required: true
+      - dns_credentialSet_component_argumentName: "AZURE_CLIENT_CERTIFICATE_PATH"
+        dns_credentialSet_component_friendlyName: "Azure Client Certificate"
+        dns_credentialSet_component_description: "The path to your client certificate"
+        dns_credentialSet_component_type: "certificate"
+        dns_credentialSet_component_secret: true
+        dns_credentialSet_component_required: true
+      - dns_credentialSet_component_argumentName: "AZURE_ENVIRONMENT"
+        dns_credentialSet_component_friendlyName: "Azure Environment"
+        dns_credentialSet_component_description: "Choose if Public, Government or China Cloud."
+        dns_credentialSet_component_type: "picklist"
+        dns_credentialSet_component_secret: false
+        dns_credentialSet_component_required: false
+        dns_credentialSet_component_picklistValues:
+          - dns_credentialSet_component_picklistValue_name: "azure_environment_commercial"
+            dns_credentialSet_component_picklistValue_friendlyName: "Default Azure Environment"
+            dns_credentialSet_component_picklistValue_description: "Choose for regular commercial systems"
+            dns_credentialSet_component_picklistValue_value: "public"
+          - dns_credentialSet_component_picklistValue_name: "azure_environment_usgovernment"
+            dns_credentialSet_component_picklistValue_friendlyName: "Azure for U.S. Government"
+            dns_credentialSet_component_picklistValue_description: "Choose if you are a U.S. Government Customer"
+            dns_credentialSet_component_picklistValue_value: "usgovernment"
+          - dns_credentialSet_component_picklistValue_name: "azure_environment_china"
+            dns_credentialSet_component_picklistValue_friendlyName: "Azure China"
+            dns_credentialSet_component_picklistValue_description: "Choose if you your Region is China"
+            dns_credentialSet_component_picklistValue_value: "china"
+      - dns_credentialSet_component_argumentName: "AZURE_POLLING_INTERVAL"
+        dns_credentialSet_component_friendlyName: "DNS Propagation Check"
+        dns_credentialSet_component_description: "Time between DNS propagation check in seconds (Default: 2)"
+        dns_credentialSet_component_type: "integer"
+        dns_credentialSet_component_secret: false
+        dns_credentialSet_component_required: false
+      - dns_credentialSet_component_argumentName: "AZURE_PRIVATE_ZONE"
+        dns_credentialSet_component_friendlyName: "Azure Private Zone"
+        dns_credentialSet_component_description: "Set to true to use Azure Private DNS Zones and not public"
+        dns_credentialSet_component_type: "boolean"
+        dns_credentialSet_component_secret: false
+        dns_credentialSet_component_required: false
+      - dns_credentialSet_component_argumentName: "AZURE_PROPAGATION_TIMEOUT"
+        dns_credentialSet_component_friendlyName: "Azure Propagation Time-Out"
+        dns_credentialSet_component_description: "Maximum waiting time for DNS propagation in seconds (Default: 120)."
+        dns_credentialSet_component_type: "integer"
+        dns_credentialSet_component_secret: false
+        dns_credentialSet_component_required: false
+      - dns_credentialSet_component_argumentName: "AZURE_RESOURCE_GROUP"
+        dns_credentialSet_component_friendlyName: "Azure Resource Group"
+        dns_credentialSet_component_description: "Your Azure Resource Group"
+        dns_credentialSet_component_type: "string"
+        dns_credentialSet_component_secret: true
+        dns_credentialSet_component_required: true
+      - dns_credentialSet_component_argumentName: "AZURE_SUBSCRIPTION_ID"
+        dns_credentialSet_component_friendlyName: "Azure DNS zone subscription ID"
+        dns_credentialSet_component_description: "Your Azure DNS zone subscription ID"
+        dns_credentialSet_component_type: "string"
+        dns_credentialSet_component_secret: false
+        dns_credentialSet_component_required: true
+      - dns_credentialSet_component_argumentName: "AZURE_TTL"
+        dns_credentialSet_component_friendlyName: "Azure TXT Record Lifetime"
+        dns_credentialSet_component_description: "The TTL of the TXT record used for the DNS challenge in seconds (Default: 60)."
+        dns_credentialSet_component_type: "integer"
+        dns_credentialSet_component_secret: false
+        dns_credentialSet_component_required: false
+      - dns_credentialSet_component_argumentName: "AZURE_ZONE_NAME"
+        dns_credentialSet_component_friendlyName: "Azure DNS zone Name"
+        dns_credentialSet_component_description: "Your Azure DNS zone Name"
+        dns_credentialSet_component_type: "string"
+        dns_credentialSet_component_secret: false
+        dns_credentialSet_component_required: false
