@@ -168,6 +168,7 @@ Following packages will be alway installed:
 - libc-bin
 - sqlite3
 - certbot
+- LEGO binaries
 
 Following Packages are only installed for development:
 
@@ -242,26 +243,11 @@ Requirements:
 3) It will as first stept request a certificate for this server itself to offer the management web interface.
 EOF
 
-while true; do
-    echo "Do you understand the risks and want to proceed?"
-    echo "Type Y to continue or N to cancel the install."
-    read -p "#? " reply
-
-    case $reply in
-        1 | Yes | yes | y | Y ) 
-            make install
-            break
-            ;;
-        2 | No | no | n | N ) 
-            echo "Installation aborted."
-            exit 0
-            ;;
-        * ) 
-            echo "Invalid option. Please try again."
-            echo ""
-            ;;
-    esac
-done
+confirm_continue -y \
+    -startmsg="Do you want to enable Development Mode?" \
+    -endmsg="Your selection has been written to the .env file." \
+    on_no="collect_dns_credentials" \
+    on_yes="collect_dns_credentials"
 
 # ==========================================
 # Choice of O/S and Package Manager to install requirements
