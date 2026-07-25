@@ -14,6 +14,7 @@
 . ./helpers/install_linux_dependencies.sh
 . ./helpers/license_request.sh
 . ./helpers/mode_selector.sh
+. ./helpers/host_certificate_credentials.sh
 . ./helpers/host_certificate.sh
 
 # ==========================================
@@ -245,9 +246,9 @@ EOF
 
 confirm_continue -y \
     -startmsg="Do you want to proceed with setting up the credentials for this host certificate?" \
-    -endmsg="Your credentials have been saved." \
-    on_no="You have not accepted the privacy agreement, the installation is cancelled.'; exit 1" \
-    on_yes="collect_dns_credentials"
+    -endmsg="Your host certificate has been set up." \
+    on_no="'You have declined the host certificate setup, the installation is cancelled.'; exit 1" \
+    on_yes="host_certificate_request"
 
 # ==========================================
 # Choice of O/S and Package Manager to install requirements

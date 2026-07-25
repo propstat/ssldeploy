@@ -1,18 +1,37 @@
 #!/bin/sh
 # =============================================================================
-# ssldeploy - DNS provider credential collection
+# ssldeploy - host certificate: credential collection + issuance + renewal
 #
-# Executed from: ssldeploy/install/
-# Reads:         ../dns/configurations/*.yaml
-# Writes:        ../dns/credentials/host
-#                ../dns/credentials/certificates/host.pem
-#                ../dns/credentials/certificates/host.key
+# Executed from: ssldeploy/install/  (sourced by install.sh)
 #
-# POSIX sh compatible (dash, bash, busybox ash) -> runs on Debian, Ubuntu,
-# RHEL, Arch, Alpine and SUSE without bash-only features. Only awk, stty,
-# mktemp and nano are required (all available via base/coreutils packages).
+# Entry point:
+#   host_certificate_request   - full flow: collect DNS credentials, test
+#                                them against ACME staging, issue the host
+#                                certificate, set up cron-based renewal
+#
+# Internal functions (do not call directly from install.sh):
+#   collect_dns_credentials    - interactive credential collection
+#                                (also reused by the retry loop)
+#   host_dns_certificate       - FQDN confirmation, staging test, issuance,
+#                                renewal script + cron job
+#   _hdc_*                     - shared helpers
+#
+# Reads:   ../dns/configurations/*.yaml
+#          ../.env  (ssldeployMode, ACME_EMAIL, ...)
+# Writes:  ../dns/credentials/host
+#          ../dns/credentials/certificates/host.pem|host.key
+#          ../certificateStorage/certificates/<fqdn>.*  + host.crt/host.key
+#          ../certificateStorage/acme-configurations/host.json
+#          ../tools/renewHostCertificate.sh
+#          /etc/cron.d/ssldeploy-renew (root) or user crontab entry
+#
+# POSIX sh compatible (dash, bash, busybox ash) - runs on Debian, Ubuntu,
+# RHEL, Arch, Alpine and SUSE. Requires: awk, stty, mktemp, nano, lego.
 # =============================================================================
 
+# ==============================================================================
+# credential collection
+# ==============================================================================
 collect_dns_credentials() {
     CONFIG_DIR="../dns/configurations"
     CRED_DIR="../dns/credentials"
@@ -208,6 +227,7 @@ collect_dns_credentials() {
             # ----------------------------------------------------------- #
             certificate)
                 mkdir -p "$CERT_DIR"
+                chmod 700 "$CERT_DIR"
                 printf 'A text editor will open. Paste the CERTIFICATE (PEM), then save and exit (Ctrl+O, Enter, Ctrl+X).\n'
                 printf 'Press Enter to open the editor...'
                 read -r _dummy < /dev/tty
@@ -326,6 +346,7 @@ ${arg}=${value}"
     # 6. Write ../dns/credentials/host                                        #
     # ======================================================================= #
     mkdir -p "$CRED_DIR"
+    chmod 700 "$CRED_DIR"
     umask_old="$(umask)"
     umask 077
     printf '%s\n' "$OUTPUT" > "$CRED_FILE"
@@ -338,4 +359,349 @@ ${arg}=${value}"
     rm -f "$tmp_prov" "$tmp_sets" "$tmp_comp"
     trap - INT TERM
     return 0
+}
+
+# ==============================================================================
+# host certificate issuance + renewal
+# ==============================================================================
+# --------------------------------------------------------------------------- #
+# internal: export all credential components from $CRED_FILE                  #
+# sets: hdc_exported_vars, hdc_dns_provider                                   #
+# --------------------------------------------------------------------------- #
+_hdc_export_creds() {
+    hdc_exported_vars=""
+    hdc_dns_provider="$(awk -F'=' '$1 == "dns_name" { print $2; exit }' "$CRED_FILE")"
+    if [ -z "$hdc_dns_provider" ]; then
+        printf 'ERROR: dns_name missing in %s.\n' "$CRED_FILE" >&2
+        return 1
+    fi
+    while IFS= read -r line || [ -n "$line" ]; do
+        case "$line" in
+            ''|'#'*|dns_name=*) continue ;;
+        esac
+        key="${line%%=*}"
+        case "$key" in
+            *[!A-Za-z0-9_]*|'')
+                printf 'WARNING: skipping malformed credential line (key: %s).\n' "$key" >&2
+                continue
+                ;;
+        esac
+        export "$key=${line#*=}"
+        hdc_exported_vars="$hdc_exported_vars $key"
+    done < "$CRED_FILE"
+    unset line key
+
+    if [ -z "$hdc_exported_vars" ]; then
+        printf 'ERROR: no credential components found in %s.\n' "$CRED_FILE" >&2
+        return 1
+    fi
+    return 0
+}
+
+# --------------------------------------------------------------------------- #
+# internal: unset the previously exported credential variables                #
+# --------------------------------------------------------------------------- #
+_hdc_unset_creds() {
+    for key in $hdc_exported_vars; do
+        unset "$key"
+    done
+    unset hdc_exported_vars key
+}
+
+# --------------------------------------------------------------------------- #
+# internal: persist or replace a KEY=VALUE line in ../.env                    #
+# --------------------------------------------------------------------------- #
+_hdc_env_set() {
+    _k="$1"; _v="$2"
+    [ -f "$ENV_FILE" ] || : > "$ENV_FILE"
+    _tmp="$(mktemp)" || return 1
+    grep -v "^${_k}=" "$ENV_FILE" > "$_tmp" 2>/dev/null || true
+    printf '%s=%s\n' "$_k" "$_v" >> "$_tmp"
+    cat "$_tmp" > "$ENV_FILE"
+    rm -f "$_tmp"
+    unset _k _v _tmp
+}
+
+# --------------------------------------------------------------------------- #
+# main                                                                        #
+# --------------------------------------------------------------------------- #
+host_dns_certificate() {
+    CRED_FILE="../dns/credentials/host"
+    ENV_FILE="../.env"
+    STORAGE_PATH="../certificateStorage"
+    STAGING_URL="https://acme-staging-v02.api.letsencrypt.org/directory"
+    RENEW_SCRIPT="../tools/renewHostCertificate.sh"
+    CRON_FILE="/etc/cron.d/ssldeploy-renew"
+
+    # --- locate lego ------------------------------------------------------- #
+    if command -v lego >/dev/null 2>&1; then
+        LEGO_BIN="$(command -v lego)"
+    elif [ -x "../tools/lego/lego" ]; then
+        LEGO_BIN="../tools/lego/lego"
+    else
+        printf 'ERROR: lego binary not found (PATH or ../tools/lego/lego).\n' >&2
+        return 1
+    fi
+
+    if [ ! -f "$CRED_FILE" ]; then
+        printf 'ERROR: %s not found. Run the credential setup first.\n' "$CRED_FILE" >&2
+        return 1
+    fi
+
+    # ======================================================================= #
+    # 1. Confirm (or change) the FQDN of this host                            #
+    # ======================================================================= #
+    host_fqdn="$(hostname -f 2>/dev/null || hostname 2>/dev/null)"
+    while :; do
+        if [ -n "$host_fqdn" ]; then
+            printf '\nThe certificate will be requested for: %s\n' "$host_fqdn"
+            printf 'Is this fully qualified domain name correct? [Y/n]: '
+            read -r answer < /dev/tty
+            case "$answer" in
+                ''|y|Y|yes|YES) break ;;
+            esac
+        fi
+        # manual entry: loop here until a valid FQDN is given, then accept it
+        while :; do
+            printf 'Enter the fully qualified domain name of this host: '
+            read -r answer < /dev/tty
+            case "$answer" in
+                *.*)
+                    case "$answer" in
+                        *[!a-zA-Z0-9.-]*|-*|*-|.*|*.) printf 'Invalid domain name.\n' ;;
+                        *) host_fqdn="$answer"; break ;;
+                    esac
+                    ;;
+                *)  printf 'Please enter a fully qualified domain name (host.example.com).\n' ;;
+            esac
+        done
+        break
+    done
+
+    # --- ACME account e-mail ------------------------------------------------ #
+    acme_email=""
+    [ -f "$ENV_FILE" ] && acme_email="$(awk -F'=' '$1 == "ACME_EMAIL" { print $2; exit }' "$ENV_FILE")"
+    while [ -z "$acme_email" ]; do
+        printf 'E-mail address for the ACME account (expiry notices): '
+        read -r answer < /dev/tty
+        case "$answer" in
+            *@*.*) acme_email="$answer" ;;
+            *)     printf 'Please enter a valid e-mail address.\n' ;;
+        esac
+    done
+
+    mkdir -p "$STORAGE_PATH"
+    chmod 700 "$STORAGE_PATH"
+
+    # ======================================================================= #
+    # 2. Test issuance against the ACME staging directory                     #
+    #    on failure -> offer to re-collect credentials and retry              #
+    # ======================================================================= #
+    while :; do
+        _hdc_export_creds || return 1
+
+        printf '\nTesting your DNS credentials against the Let'\''s Encrypt STAGING servers...\n'
+        printf 'Provider: %s - Domain: %s\n\n' "$hdc_dns_provider" "$host_fqdn"
+
+        "$LEGO_BIN" \
+            --accept-tos \
+            --path "$STORAGE_PATH" \
+            --email "$acme_email" \
+            --dns "$hdc_dns_provider" \
+            --domains "$host_fqdn" \
+            --server "$STAGING_URL" \
+            run --always-deactivate-authorizations
+        lego_rc=$?
+
+        _hdc_unset_creds
+
+        if [ "$lego_rc" -eq 0 ]; then
+            printf '\nStaging test SUCCEEDED. Your DNS credentials are working.\n'
+            break
+        fi
+
+        printf '\nStaging test FAILED (lego exit code %d).\n' "$lego_rc" >&2
+        printf 'This usually means the DNS credentials are wrong or lack permissions.\n' >&2
+        printf 'Do you want to re-enter your DNS credentials and try again? [Y/n]: '
+        read -r answer < /dev/tty
+        case "$answer" in
+            n|N|no|NO)
+                printf 'Aborting host certificate setup.\n' >&2
+                return "$lego_rc"
+                ;;
+        esac
+
+        if command -v collect_dns_credentials >/dev/null 2>&1; then
+            collect_dns_credentials || return 1
+        else
+            printf 'ERROR: collect_dns_credentials is not available in this shell.\n' >&2
+            return 1
+        fi
+    done
+
+    # ======================================================================= #
+    # 2b. Keep the staging certificate or request a production one?           #
+    # ======================================================================= #
+    acme_server="$STAGING_URL"
+    printf '\nA STAGING certificate for %s is now stored. It is NOT publicly trusted\n' "$host_fqdn"
+    printf 'and only suitable for testing.\n\n'
+    printf '  1) Keep the staging certificate (testing / development)\n'
+    printf '  2) Request a production certificate now (publicly trusted)\n\n'
+    while :; do
+        printf 'Select an option [1-2]: '
+        read -r answer < /dev/tty
+        case "$answer" in
+            1) break ;;
+            2)
+                _hdc_export_creds || return 1
+                printf '\nRequesting a PRODUCTION certificate for %s...\n\n' "$host_fqdn"
+                "$LEGO_BIN" \
+                    --accept-tos \
+                    --path "$STORAGE_PATH" \
+                    --email "$acme_email" \
+                    --dns "$hdc_dns_provider" \
+                    --domains "$host_fqdn" \
+                    run --always-deactivate-authorizations
+                lego_rc=$?
+                _hdc_unset_creds
+                if [ "$lego_rc" -ne 0 ]; then
+                    printf 'ERROR: production request failed (exit code %d).\n' "$lego_rc" >&2
+                    printf 'The staging certificate remains in place.\n' >&2
+                    return "$lego_rc"
+                fi
+                acme_server="production"
+                break
+                ;;
+            *) printf 'Invalid selection.\n' ;;
+        esac
+    done
+
+    # ======================================================================= #
+    # 3. Persist the settings needed for unattended renewal                   #
+    # ======================================================================= #
+    _hdc_env_set "ACME_EMAIL"  "$acme_email"
+    _hdc_env_set "HOST_FQDN"   "$host_fqdn"
+    _hdc_env_set "ACME_SERVER" "$acme_server"
+
+    chmod 600 "$STORAGE_PATH/certificates/$host_fqdn.key" 2>/dev/null
+
+    # stable filenames for the application / web server configuration:
+    # lego always writes <fqdn>.crt/.key (renew depends on those names), so
+    # host.crt/host.key are maintained as symlinks that follow every renewal.
+    ln -sf "$host_fqdn.crt" "$STORAGE_PATH/certificates/host.crt"
+    ln -sf "$host_fqdn.key" "$STORAGE_PATH/certificates/host.key"
+
+    # the ACME certificate resource (<fqdn>.json) must stay in certificates/
+    # for lego renew to find it; expose it under a stable name as a symlink.
+    mkdir -p "$STORAGE_PATH/acme-configurations"
+    chmod 700 "$STORAGE_PATH/acme-configurations"
+    ln -sf "../certificates/$host_fqdn.json" "$STORAGE_PATH/acme-configurations/host.json"
+
+    printf '\nCertificate stored:\n'
+    printf '  Certificate: %s/certificates/host.crt\n' "$STORAGE_PATH"
+    printf '  Private key: %s/certificates/host.key\n' "$STORAGE_PATH"
+
+    # ======================================================================= #
+    # 4. Renewal script + daily cron job                                      #
+    # ======================================================================= #
+    app_root="$(CDPATH= cd -- .. && pwd)"
+    lego_abs="$LEGO_BIN"
+    case "$lego_abs" in ../*) lego_abs="$app_root/${LEGO_BIN#../}" ;; esac
+
+    mkdir -p "$(dirname "$RENEW_SCRIPT")"
+    cat > "$RENEW_SCRIPT" << RENEW_EOF
+#!/bin/sh
+# ssldeploy - unattended renewal of the host certificate (generated file)
+APP_ROOT="$app_root"
+LEGO_BIN="$lego_abs"
+RENEW_EOF
+    cat >> "$RENEW_SCRIPT" << 'RENEW_EOF'
+CRED_FILE="$APP_ROOT/dns/credentials/host"
+ENV_FILE="$APP_ROOT/.env"
+STORAGE_PATH="$APP_ROOT/certificateStorage"
+STAGING_URL="https://acme-staging-v02.api.letsencrypt.org/directory"
+
+[ -f "$CRED_FILE" ] || { echo "ssldeploy-renew: $CRED_FILE missing" >&2; exit 1; }
+[ -f "$ENV_FILE" ]  || { echo "ssldeploy-renew: $ENV_FILE missing"  >&2; exit 1; }
+
+envget() { awk -F'=' -v k="$1" '$1 == k { print $2; exit }' "$ENV_FILE"; }
+ACME_EMAIL="$(envget ACME_EMAIL)"
+HOST_FQDN="$(envget HOST_FQDN)"
+ACME_SERVER="$(envget ACME_SERVER)"
+[ -n "$ACME_EMAIL" ] && [ -n "$HOST_FQDN" ] || { echo "ssldeploy-renew: ACME_EMAIL/HOST_FQDN missing in .env" >&2; exit 1; }
+
+DNS_PROVIDER="$(awk -F'=' '$1 == "dns_name" { print $2; exit }' "$CRED_FILE")"
+while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in ''|'#'*|dns_name=*) continue ;; esac
+    key="${line%%=*}"
+    case "$key" in *[!A-Za-z0-9_]*|'') continue ;; esac
+    export "$key=${line#*=}"
+done < "$CRED_FILE"
+
+if [ "$ACME_SERVER" = "production" ]; then
+    set -- 
+else
+    set -- --server "$STAGING_URL"
+fi
+
+"$LEGO_BIN" \
+    --accept-tos \
+    --path "$STORAGE_PATH" \
+    --email "$ACME_EMAIL" \
+    --dns "$DNS_PROVIDER" \
+    --domains "$HOST_FQDN" \
+    "$@" \
+    renew --days 30 --always-deactivate-authorizations
+rc=$?
+
+# keep the stable filenames pointing at the (possibly renewed) certificate
+if [ "$rc" -eq 0 ] && [ -f "$STORAGE_PATH/certificates/$HOST_FQDN.crt" ]; then
+    ln -sf "$HOST_FQDN.crt" "$STORAGE_PATH/certificates/host.crt"
+    ln -sf "$HOST_FQDN.key" "$STORAGE_PATH/certificates/host.key"
+    mkdir -p "$STORAGE_PATH/acme-configurations"
+    ln -sf "../certificates/$HOST_FQDN.json" "$STORAGE_PATH/acme-configurations/host.json"
+fi
+
+exit "$rc"
+RENEW_EOF
+    chmod 700 "$RENEW_SCRIPT"
+    renew_abs="$app_root/tools/renewHostCertificate.sh"
+
+    # random minute so not every install hits the CA at the same time
+    cron_min="$(awk 'BEGIN { srand(); print int(rand() * 60) }')"
+
+    # the installer is always executed by the flask user - renewals run as it
+    cron_user="$(whoami)"
+    if [ "$cron_user" = "root" ]; then
+        cron_log="/var/log/ssldeploy-renew.log"
+    else
+        cron_log="$app_root/ssldeploy-renew.log"
+    fi
+
+    if [ "$(id -u)" -eq 0 ] && [ -d /etc/cron.d ]; then
+        printf '# ssldeploy host certificate renewal (generated)\n%s 3 * * * %s %s >> %s 2>&1\n' \
+            "$cron_min" "$cron_user" "$renew_abs" "$cron_log" > "$CRON_FILE"
+        chmod 644 "$CRON_FILE"
+        printf '\nRenewal cron job installed: %s (daily at 03:%02d, runs as %s)\n' "$CRON_FILE" "$cron_min" "$cron_user"
+    elif command -v crontab >/dev/null 2>&1; then
+        if ! crontab -l 2>/dev/null | grep -qF "$renew_abs"; then
+            ( crontab -l 2>/dev/null
+              printf '%s 3 * * * %s >> %s 2>&1\n' \
+                  "$cron_min" "$renew_abs" "$cron_log" ) | crontab -
+        fi
+        printf '\nRenewal cron job installed in the crontab of %s (daily at 03:%02d).\n' "$cron_user" "$cron_min"
+    else
+        printf '\nWARNING: no cron facility found. Schedule this manually:\n  %s\n' "$renew_abs" >&2
+    fi
+
+    printf 'Renewal script: %s (renews when fewer than 30 days remain)\n' "$renew_abs"
+    return 0
+}
+
+# =============================================================================
+# entry point for install.sh
+# =============================================================================
+host_certificate_request() {
+    collect_dns_credentials || return 1
+    host_dns_certificate
 }
