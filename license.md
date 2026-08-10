@@ -10,7 +10,7 @@ Redistribution and use in source and binary forms, with or without modification,
 4. Neither the name of the copyright holder nor the names the copyright holder nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
 5. Neither the source code nor a binary form it may be used to provide services to a third party that derive their value entirely or primarily from the source code or the binary itself.
 6. The use for non-commercial applications is free of charge and unrestricted.
-7. The use for commercial applications requires a separate license if the application is used and / or installed for more than 30 days.
+7. The use for commercial applications requires a separate license if the application is installed and / or used for more than 30 days.
 
 The copyright holder has the sole discretion to provide the source code or a binary form with a license that permits a less restrictive or unrestricted use.
 Any unauthorized use of the source code or a binary form terminates the license.

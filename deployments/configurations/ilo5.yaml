@@ -1,0 +1,11 @@
+%YAML 1.2
+---
+dns_name: "hpeilo"
+dns_friendlyName: "HPE ILO (Internal Lights Out) Certificate Deployment"
+dns_documentationURL: "https://documentation.example.com"
+dns_deploymentSet:
+  - 
+    versionLow: "5.0"
+    versionMax: "5.2"
+    keyType: "ec384"
+    format: "pem"
