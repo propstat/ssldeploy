@@ -21,6 +21,7 @@ While we do not provide automatic testing for all DNS solutions, we will require
 
 # Questions
 - [ ] Is the provider currently supported by LEGO DNS ([see supported providers](https://go-acme.github.io/lego/dns/index.html#dns-providers))?
-- [ ] Do you want to create an own PR to SSL Deploy to support the DNS Provider ([see examples](https://github.com/propstat/ssldeploy/blob/main/tools/yamlTemplates/dns_configuration_example.yaml))?
+- [ ] I want to make a PR for this DNS provider ([see examples](https://github.com/propstat/ssldeploy/blob/main/tools/yamlTemplates/dns_configuration_example.yaml))?
+- [ ] I understand that Propstat might process my personal data (such as Github Handle and Name) for this request.
 
 Don't worry, we will help you if you struggle along the way.
