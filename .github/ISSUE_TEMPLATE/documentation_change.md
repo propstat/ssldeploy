@@ -14,5 +14,6 @@ Feel free to make a PR, we will review it.
 # Description of change request
 Describe your desired change request...
 
-# Additional Information
-- [ ] Do you want to try to solve this issue and make a PR by yourself?
+# Declarations
+- [ ] I want to make a PR on my own.
+- [ ] I understand that Propstat might process my personal data (such as Github Handle and Name) for this request.
