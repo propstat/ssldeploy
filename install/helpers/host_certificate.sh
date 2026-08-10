@@ -157,6 +157,9 @@ collect_dns_credentials() {
         [ -z "$sel_set" ] && printf 'Invalid selection.\n'
     done
 
+    sel_set_line="$(awk -v N="$sel_set" 'NR == N' "$tmp_sets")"
+    set_name="${sel_set_line%%"$TAB"*}"
+
     # ======================================================================= #
     # 4. Extract the components of the selected credential set                #
     #    one line per component:                                              #
@@ -205,7 +208,8 @@ collect_dns_credentials() {
     # ======================================================================= #
     # 5. Collect the input for every component                                #
     # ======================================================================= #
-    OUTPUT="dns_name=${dns_name}"
+    OUTPUT="dns_name=${dns_name}
+dns_credentialSet_name=${set_name}"
     have_cert=0
 
     exec 3< "$tmp_comp"
@@ -343,6 +347,59 @@ ${arg}=${value}"
     exec 3<&-
 
     # ======================================================================= #
+    # 5b. DNS propagation check configuration                                 #
+    #                                                                         #
+    # The recursive-resolver (RNS) propagation check is ALWAYS suppressed:    #
+    # local stub resolvers (e.g. systemd-resolved) negatively cache the       #
+    # record and stall the check. The TXT record is verified against the      #
+    # zone's authoritative servers instead. The resolver choice below is      #
+    # used for DNS discovery (finding the authoritative servers, CNAME and    #
+    # apex resolution).                                                       #
+    # ======================================================================= #
+    printf '\n--- DNS propagation check ---\n'
+    printf 'Before validation, lego verifies that the challenge TXT record is\n'
+    printf 'visible on the authoritative DNS servers of your zone.\n'
+    printf 'Choose which DNS servers are used to resolve and discover them:\n\n'
+    printf '  1) Authoritative DNS only (system resolvers for discovery)\n'
+    printf '  2) Public DNS (Cloudflare 1.1.1.1 / Google 8.8.8.8)\n'
+    printf '  3) Custom DNS servers\n\n'
+    while :; do
+        printf 'Select an option [1-3]: '
+        read -r answer < /dev/tty
+        case "$answer" in
+            1|'')
+                break
+                ;;
+            2)
+                OUTPUT="${OUTPUT}
+LEGO_DNS_RESOLVERS=1.1.1.1:53,8.8.8.8:53"
+                break
+                ;;
+            3)
+                while :; do
+                    printf 'Custom DNS servers (comma-separated host:port): '
+                    read -r resolvers < /dev/tty
+                    case "$resolvers" in
+                        '')
+                            printf 'A custom server list can not be empty.\n' ;;
+                        *[!]A-Za-z0-9.:,[-]*|*,,*|,*|*,)
+                            printf 'Invalid server list (use host:port, comma-separated).\n' ;;
+                        *)
+                            OUTPUT="${OUTPUT}
+LEGO_DNS_RESOLVERS=${resolvers}"
+                            break ;;
+                    esac
+                done
+                break
+                ;;
+            *) printf 'Invalid selection.\n' ;;
+        esac
+    done
+    OUTPUT="${OUTPUT}
+LEGO_DNS_PROPAGATION_DISABLE_RNS=true"
+    unset resolvers
+
+    # ======================================================================= #
     # 6. Write ../dns/credentials/host                                        #
     # ======================================================================= #
     mkdir -p "$CRED_DIR"
@@ -377,7 +434,7 @@ _hdc_export_creds() {
     fi
     while IFS= read -r line || [ -n "$line" ]; do
         case "$line" in
-            ''|'#'*|dns_name=*) continue ;;
+            ''|'#'*|dns_name=*|dns_credentialSet_name=*) continue ;;
         esac
         key="${line%%=*}"
         case "$key" in
@@ -394,6 +451,14 @@ _hdc_export_creds() {
     if [ -z "$hdc_exported_vars" ]; then
         printf 'ERROR: no credential components found in %s.\n' "$CRED_FILE" >&2
         return 1
+    fi
+
+    # the recursive-resolver propagation check is always suppressed (local
+    # stub resolvers negatively cache the record); credential files written
+    # before this policy may lack the line, so default it here.
+    if [ -z "$LEGO_DNS_PROPAGATION_DISABLE_RNS" ]; then
+        export LEGO_DNS_PROPAGATION_DISABLE_RNS="true"
+        hdc_exported_vars="$hdc_exported_vars LEGO_DNS_PROPAGATION_DISABLE_RNS"
     fi
     return 0
 }
@@ -452,13 +517,11 @@ host_dns_certificate() {
     RENEW_SCRIPT="../tools/renewHostCertificate.sh"
     CRON_FILE="/etc/cron.d/ssldeploy-renew"
 
-    # --- locate lego ------------------------------------------------------- #
+    # --- locate lego (version is guaranteed by install_linux_dependencies) - #
     if command -v lego >/dev/null 2>&1; then
         LEGO_BIN="$(command -v lego)"
-    elif [ -x "../tools/lego/lego" ]; then
-        LEGO_BIN="../tools/lego/lego"
     else
-        printf 'ERROR: lego binary not found (PATH or ../tools/lego/lego).\n' >&2
+        printf 'ERROR: lego binary not found. Run the dependency installation first.\n' >&2
         return 1
     fi
 
@@ -686,11 +749,14 @@ ACME_SERVER="$(envget ACME_SERVER)"
 
 DNS_PROVIDER="$(awk -F'=' '$1 == "dns_name" { print $2; exit }' "$CRED_FILE")"
 while IFS= read -r line || [ -n "$line" ]; do
-    case "$line" in ''|'#'*|dns_name=*) continue ;; esac
+    case "$line" in ''|'#'*|dns_name=*|dns_credentialSet_name=*) continue ;; esac
     key="${line%%=*}"
     case "$key" in *[!A-Za-z0-9_]*|'') continue ;; esac
     export "$key=${line#*=}"
 done < "$CRED_FILE"
+
+# the recursive-resolver propagation check is always suppressed
+[ -z "$LEGO_DNS_PROPAGATION_DISABLE_RNS" ] && export LEGO_DNS_PROPAGATION_DISABLE_RNS="true"
 
 if [ "$ACME_SERVER" = "production" ]; then
     set -- 

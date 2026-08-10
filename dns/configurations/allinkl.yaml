@@ -10,8 +10,8 @@ dns_credentialSet:
     dns_credentialSet_documentationURL: "https://documentation.example.com/howtogetatoken"
     dns_credentialSet_components:
       - dns_credentialSet_component_argumentName: "ALL_INKL_LOGIN"
-        dns_credentialSet_component_friendlyName: "Example DNS API Token"
-        dns_credentialSet_component_description: "Your Example DNS API Token"
+        dns_credentialSet_component_friendlyName: "KAS Login"
+        dns_credentialSet_component_description: "Your All-InklKAS Username"
         dns_credentialSet_component_type: "string"
         dns_credentialSet_component_secret: false
         dns_credentialSet_component_required: true
