@@ -20,9 +20,9 @@
 #          ../.env  (ssldeployMode, ACME_EMAIL, ...)
 # Writes:  ../dns/credentials/host
 #          ../dns/credentials/certificates/host.pem|host.key
-#          ../certificateStorage/certificates/<fqdn>.*  + host.crt/host.key
-#          ../certificateStorage/acme-configurations/host.json
-#          ../tools/renewHostCertificate.sh
+#          ../certificateStorage/host/certificates/<fqdn>.* + host.crt/host.key
+#          ../certificateStorage/host/acme-configurations/host.json
+#          ../certificateStorage/host/accounts/ (lego ACME accounts)
 #          /etc/cron.d/ssldeploy-renew (root) or user crontab entry
 #
 # POSIX sh compatible (dash, bash, busybox ash) - runs on Debian, Ubuntu,
@@ -512,9 +512,8 @@ _hdc_read_fqdn() {
 host_dns_certificate() {
     CRED_FILE="../dns/credentials/host"
     ENV_FILE="../.env"
-    STORAGE_PATH="../certificateStorage"
+    STORAGE_PATH="../certificateStorage/host"
     STAGING_URL="https://acme-staging-v02.api.letsencrypt.org/directory"
-    RENEW_SCRIPT="../tools/renewHostCertificate.sh"
     CRON_FILE="/etc/cron.d/ssldeploy-renew"
 
     # --- locate lego (version is guaranteed by install_linux_dependencies) - #
@@ -669,23 +668,37 @@ host_dns_certificate() {
             2)
                 _hdc_export_creds || return 1
                 printf '\nRequesting a PRODUCTION certificate for %s...\n\n' "$host_fqdn"
-                # --renew-force: the staging certificate just issued is fresh,
-                # without it 'run' would consider the cert not due and skip.
+                # The staging certificate must not be visible to lego during
+                # the production request: lego would treat it as an ARI
+                # renewal of the staging certificate, and the production CA
+                # rejects the staging issuer ("Authority Key Identifier did
+                # not match a known issuer"). Set the staging files aside so
+                # this is a clean first issuance; restore them on failure.
+                hdc_setaside="$STORAGE_PATH/.staging-setaside"
+                rm -rf "$hdc_setaside"
+                mkdir -p "$hdc_setaside"
+                for f in "$STORAGE_PATH/certificates/$host_fqdn".*; do
+                    [ -e "$f" ] && mv "$f" "$hdc_setaside/"
+                done
                 "$LEGO_BIN" run \
                     --accept-tos \
                     --path "$STORAGE_PATH" \
                     --email "$acme_email" \
                     --dns "$hdc_dns_provider" \
                     --domains "$host_fqdn" \
-                    --always-deactivate-authorizations \
-                    --renew-force
+                    --always-deactivate-authorizations
                 lego_rc=$?
                 _hdc_unset_creds
                 if [ "$lego_rc" -ne 0 ]; then
+                    for f in "$hdc_setaside"/*; do
+                        [ -e "$f" ] && mv "$f" "$STORAGE_PATH/certificates/"
+                    done
+                    rm -rf "$hdc_setaside"; unset hdc_setaside f
                     printf 'ERROR: production request failed (exit code %d).\n' "$lego_rc" >&2
-                    printf 'The staging certificate remains in place.\n' >&2
+                    printf 'The staging certificate has been restored and remains in place.\n' >&2
                     return "$lego_rc"
                 fi
+                rm -rf "$hdc_setaside"; unset hdc_setaside f
                 acme_server="production"
                 break
                 ;;
@@ -719,76 +732,26 @@ host_dns_certificate() {
     printf '  Private key: %s/certificates/host.key\n' "$STORAGE_PATH"
 
     # ======================================================================= #
-    # 4. Renewal script + daily cron job                                      #
+    # 4. Daily renewal cron job (invokes lego directly for the host)          #
     # ======================================================================= #
     app_root="$(CDPATH= cd -- .. && pwd)"
     lego_abs="$LEGO_BIN"
     case "$lego_abs" in ../*) lego_abs="$app_root/${LEGO_BIN#../}" ;; esac
 
-    mkdir -p "$(dirname "$RENEW_SCRIPT")"
-    cat > "$RENEW_SCRIPT" << RENEW_EOF
-#!/bin/sh
-# ssldeploy - unattended renewal of the host certificate (generated file)
-APP_ROOT="$app_root"
-LEGO_BIN="$lego_abs"
-RENEW_EOF
-    cat >> "$RENEW_SCRIPT" << 'RENEW_EOF'
-CRED_FILE="$APP_ROOT/dns/credentials/host"
-ENV_FILE="$APP_ROOT/.env"
-STORAGE_PATH="$APP_ROOT/certificateStorage"
-STAGING_URL="https://acme-staging-v02.api.letsencrypt.org/directory"
+    storage_abs="$app_root/certificateStorage/host"
+    cred_abs="$app_root/dns/credentials/host"
 
-[ -f "$CRED_FILE" ] || { echo "ssldeploy-renew: $CRED_FILE missing" >&2; exit 1; }
-[ -f "$ENV_FILE" ]  || { echo "ssldeploy-renew: $ENV_FILE missing"  >&2; exit 1; }
+    if [ "$acme_server" = "production" ]; then
+        server_arg=""
+    else
+        server_arg=" --server $STAGING_URL"
+    fi
 
-envget() { awk -F'=' -v k="$1" '$1 == k { print $2; exit }' "$ENV_FILE"; }
-ACME_EMAIL="$(envget ACME_EMAIL)"
-HOST_FQDN="$(envget HOST_FQDN)"
-ACME_SERVER="$(envget ACME_SERVER)"
-[ -n "$ACME_EMAIL" ] && [ -n "$HOST_FQDN" ] || { echo "ssldeploy-renew: ACME_EMAIL/HOST_FQDN missing in .env" >&2; exit 1; }
-
-DNS_PROVIDER="$(awk -F'=' '$1 == "dns_name" { print $2; exit }' "$CRED_FILE")"
-while IFS= read -r line || [ -n "$line" ]; do
-    case "$line" in ''|'#'*|dns_name=*|dns_credentialSet_name=*) continue ;; esac
-    key="${line%%=*}"
-    case "$key" in *[!A-Za-z0-9_]*|'') continue ;; esac
-    export "$key=${line#*=}"
-done < "$CRED_FILE"
-
-# the recursive-resolver propagation check is always suppressed
-[ -z "$LEGO_DNS_PROPAGATION_DISABLE_RNS" ] && export LEGO_DNS_PROPAGATION_DISABLE_RNS="true"
-
-if [ "$ACME_SERVER" = "production" ]; then
-    set -- 
-else
-    set -- --server "$STAGING_URL"
-fi
-
-# lego v5: 'run' issues or renews; ARI decides when a renewal is due,
-# --renew-days 30 is the fallback threshold if ARI is unavailable.
-"$LEGO_BIN" run \
-    --accept-tos \
-    --path "$STORAGE_PATH" \
-    --email "$ACME_EMAIL" \
-    --dns "$DNS_PROVIDER" \
-    --domains "$HOST_FQDN" \
-    "$@" \
-    --always-deactivate-authorizations \
-    --renew-days 30
-rc=$?
-
-# keep the stable filenames pointing at the (possibly renewed) certificate
-if [ "$rc" -eq 0 ] && [ -f "$STORAGE_PATH/certificates/$HOST_FQDN.crt" ]; then
-    ln -sf "$HOST_FQDN.crt" "$STORAGE_PATH/certificates/host.crt"
-    ln -sf "$HOST_FQDN.key" "$STORAGE_PATH/certificates/host.key"
-    mkdir -p "$STORAGE_PATH/acme-configurations"
-    ln -sf "../certificates/$HOST_FQDN.json" "$STORAGE_PATH/acme-configurations/host.json"
-fi
-
-exit "$rc"
-RENEW_EOF
-    chmod 700 "$RENEW_SCRIPT"
-    renew_abs="$app_root/tools/renewHostCertificate.sh"
+    # the credentials file is sourced with allexport so every KEY=VALUE line
+    # (provider credentials, LEGO_* settings) reaches lego as environment.
+    # lego v5 'run' issues or renews; ARI decides when a renewal is due,
+    # --renew-days 30 is the fallback threshold if ARI is unavailable.
+    renew_cmd="set -a; . $cred_abs; set +a; $lego_abs run --accept-tos --path $storage_abs --email $acme_email --dns $hdc_dns_provider --domains $host_fqdn$server_arg --always-deactivate-authorizations --renew-days 30"
 
     # random minute so not every install hits the CA at the same time
     cron_min="$(awk 'BEGIN { srand(); print int(rand() * 60) }')"
@@ -803,21 +766,20 @@ RENEW_EOF
 
     if [ "$(id -u)" -eq 0 ] && [ -d /etc/cron.d ]; then
         printf '# ssldeploy host certificate renewal (generated)\n%s 3 * * * %s %s >> %s 2>&1\n' \
-            "$cron_min" "$cron_user" "$renew_abs" "$cron_log" > "$CRON_FILE"
+            "$cron_min" "$cron_user" "$renew_cmd" "$cron_log" > "$CRON_FILE"
         chmod 644 "$CRON_FILE"
         printf '\nRenewal cron job installed: %s (daily at 03:%02d, runs as %s)\n' "$CRON_FILE" "$cron_min" "$cron_user"
     elif command -v crontab >/dev/null 2>&1; then
-        if ! crontab -l 2>/dev/null | grep -qF "$renew_abs"; then
-            ( crontab -l 2>/dev/null
-              printf '%s 3 * * * %s >> %s 2>&1\n' \
-                  "$cron_min" "$renew_abs" "$cron_log" ) | crontab -
-        fi
+        # replace any previous ssldeploy host renewal entry, then append
+        ( crontab -l 2>/dev/null | grep -vF "$storage_abs"
+          printf '%s 3 * * * %s >> %s 2>&1\n' \
+              "$cron_min" "$renew_cmd" "$cron_log" ) | crontab -
         printf '\nRenewal cron job installed in the crontab of %s (daily at 03:%02d).\n' "$cron_user" "$cron_min"
     else
-        printf '\nWARNING: no cron facility found. Schedule this manually:\n  %s\n' "$renew_abs" >&2
+        printf '\nWARNING: no cron facility found. Schedule this daily yourself:\n  %s\n' "$renew_cmd" >&2
     fi
 
-    printf 'Renewal script: %s (renews when fewer than 30 days remain)\n' "$renew_abs"
+    unset renew_cmd server_arg storage_abs cred_abs lego_abs app_root
     return 0
 }
 
