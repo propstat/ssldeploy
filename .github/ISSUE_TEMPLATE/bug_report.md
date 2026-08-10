@@ -39,3 +39,7 @@ If applicable, add screenshots to help explain your problem.
  - OS: [e.g. iOS8.1]
  - Browser [e.g. stock browser, safari]
  - Version [e.g. 22]
+
+# Declarations
+- [ ] I want to make a PR on my own.
+- [ ] I understand that Propstat might process my personal data (such as Github Handle and Name) for this request.
