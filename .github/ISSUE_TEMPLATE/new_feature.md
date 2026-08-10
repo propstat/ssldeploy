@@ -1,16 +1,30 @@
 ---
 name: New Feature
-about: Insert generic feature requests only, DNS provider requests will be closed.
+about: Insert real feature requests only, DNS provider requests have an own issue type.
 title: "[Feature] Insert Feature Title"
-labels: enhancement, To be verfied
+labels: enhancement, To be verified
 assignees: ''
 type: Feature
 
 ---
 
-# IMPORTANT
-DNS Provider updates are very trivial in nature and you also try to add support by your own and make a pull request.
-You can ask for a paid integration that will be prioritized (usually 3-5 days).
-Please contact us via the Support Tool inside SSL Deploy.
-Please verify also if a pre-existing issue for the same provider already exists using the following link:
-https://github.com/propstat/ssldeploy/issues?q=is%3Aissue%20state%3Aopen%20label%3A%22DNS%20Support%22
+> [!TIP]
+> Do not use this form for requesting additional DNS providers, there's a dedicated issue type.
+
+# TL;DR
+A brief description.
+
+# Feature Request
+Extended description (min 2 paragraphs)...
+
+# Visual Change
+Describe required changes to the UI...
+
+# Security Implications
+If any, describe the security implications...
+
+# Declarations
+- [ ] I want to make a PR on my own.
+- [ ] I understand that Propstat might process my personal data (such as Github Handle and Name) for this request.
+
+
