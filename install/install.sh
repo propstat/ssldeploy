@@ -16,6 +16,7 @@
 . ./helpers/mode_selector.sh
 . ./helpers/host_certificate_credentials.sh
 . ./helpers/host_certificate.sh
+. ./helpers/openbao_install.sh
 
 # ==========================================
 # Requirement Variables
@@ -175,7 +176,7 @@ Following Packages are only installed for development:
 
 - tailwind-cli
 
-Following Packages are only installed for development:
+Following Packages are only installed for production:
 
 - gunicorn
 - nginx
@@ -228,14 +229,71 @@ printf 'New SECRET_KEY generated and written to %s\n' "$ENV_FILE"
 
 unset SECRET_KEY tmp_file
 
+cat << 'EOF'
+
+=========================================================
+OpenBao Configuration
+=========================================================
+
+ssldeploy stores DNS provider credentials in OpenBao rather
+than in the application database.
+
+[y/Y] Local     OpenBao runs on this host. It is installed as
+                a service, initialised, and unsealed
+                automatically at boot by a root-owned hook.
+                The unseal key is stored at
+                /etc/ssldeploy/unseal.key (root, 0400) and
+                must NEVER be included in a backup that also
+                contains /var/lib/openbao - doing so removes
+                the benefit of encryption at rest entirely.
+
+[n/N] Remote    OpenBao runs on another machine. No service is
+                installed here. Recommended where available:
+                a reboot of THIS host cannot then stall
+                renewal. Note that ssldeploy holds no unseal
+                key for a remote vault - a reboot of the VAULT
+                host stalls renewal until its own operator
+                unseals it.
+
+=========================================================
+
+EOF
+
+confirm_continue -y \
+    -startmsg="Do you want to run OpenBao on this host?" \
+    -endmsg="OpenBao configuration complete." \
+    on_yes="openbao_local_installation || exit 1" \
+    on_no="openbao_remote_installation || exit 1"
+
 cat << EOF
 
-${RED}==========================================${NC}
+${RED}=========================================================${NC}
 ${RED}WARNING${NC}
-${RED}==========================================${NC}
-${RED}At the end of this process, this machine will hold credentials that allow to modify your DNS zone files. This system is meant for management networks and not for public access.${NC}
-${RED}The software is provided "as is," meaning the original authors are not liable for any damages or bugs.${NC}
-${RED}Proceed only if you know what you are doing.${NC}
+${RED}=========================================================${NC}
+${RED}At the end of this process, this machine will hold${NC}
+${RED}credentials that allow to modify your DNS zone files.${NC}
+${RED}This system is meant for management networks and not for${NC}
+${RED}EDGE devices or to be stored within user perimeters.${NC}
+${RED}=========================================================${NC}
+
+Requirements:
+1) This machine needs access to the internet to validate your certificate request.
+2) You local DNS server 
+2) You will subsequently need credentials to access the servers you want to deploy certificates on.
+3) It will as first stept request a certificate for this server itself to offer the management web interface.
+EOF
+
+
+cat << EOF
+
+${RED}=========================================================${NC}
+${RED}WARNING${NC}
+${RED}=========================================================${NC}
+${RED}At the end of this process, this machine will hold${NC}
+${RED}credentials that allow to modify your DNS zone files.${NC}
+${RED}This system is meant for management networks and not for${NC}
+${RED}EDGE devices or to be stored within user perimeters.${NC}
+${RED}=========================================================${NC}
 
 Requirements:
 1) This machine needs access to the internet to validate your certificate request.
