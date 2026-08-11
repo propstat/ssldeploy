@@ -1,3 +1,4 @@
 # Defines non PIP / Package dependencies
 supported_tailwind-cli="4.3.2"
-supported_lego=5.3.1
+supported_lego="5.3.1"
+supported_openbao="2.6.1"
