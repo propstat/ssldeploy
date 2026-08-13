@@ -283,25 +283,6 @@ Requirements:
 3) It will as first stept request a certificate for this server itself to offer the management web interface.
 EOF
 
-
-cat << EOF
-
-${RED}=========================================================${NC}
-${RED}WARNING${NC}
-${RED}=========================================================${NC}
-${RED}At the end of this process, this machine will hold${NC}
-${RED}credentials that allow to modify your DNS zone files.${NC}
-${RED}This system is meant for management networks and not for${NC}
-${RED}EDGE devices or to be stored within user perimeters.${NC}
-${RED}=========================================================${NC}
-
-Requirements:
-1) This machine needs access to the internet to validate your certificate request.
-2) You local DNS server 
-2) You will subsequently need credentials to access the servers you want to deploy certificates on.
-3) It will as first stept request a certificate for this server itself to offer the management web interface.
-EOF
-
 confirm_continue -y \
     -startmsg="Do you want to proceed with setting up the credentials for this host certificate?" \
     -endmsg="Your host certificate has been set up." \
